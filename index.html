@@ -1236,7 +1236,7 @@ async function startPlacesAudit(placeId, bizName) {
 
     addLog('Fetching real map pack positions via SerpAPI...', 'active');
     const city = place.formatted_address ? place.formatted_address.split(',').slice(-3).join(',').trim() : '';
-    const keywords = getKeywords(place.types?.[0]||'local service', city);
+    const keywords = getKeywordsForBusiness(place.types?.[0]||'local service', city);
     let serpResults = [];
     if (CONFIG.SERPAPI_ENABLED) {
       const serpChecks = await Promise.all(keywords.slice(0,5).map(kw => checkSerpApiMapPack(kw, city, bizName)));
@@ -2538,80 +2538,13 @@ function animateReport() {
    CLAUDE AI ANALYSIS
 ══════════════════════════════════════════════ */
 async function runAI() {
-  const m  = PD.meta;
-  const sc = PD.scores;
-  if (!m || !sc) return;
-
-  const isP = m.isPlaces;
-  const realPhotos = m.photoCount;
-  const weak = Object.entries(sc).filter(([k,v])=>v!==null&&v<50&&k!=='overall').map(([k])=>k).join(', ');
-
-  // ── Build rank context for AI from DataForSEO results ──
-  let rankInsights = 'Keyword rank data: not yet available.';
-  if (PD.rankData && PD.rankData.length) {
-    const found  = PD.rankData.filter(r => r.result?.found);
-    const top3   = found.filter(r => r.result?.position <= 3);
-    const missing= PD.rankData.filter(r => !r.result?.found);
-    const isLive = PD.rankData.some(r => r.result?.source === 'dataforseo_live');
-    rankInsights = `Keyword Rankings (${isLive ? 'LIVE DataForSEO' : 'estimated'}):\n` +
-      PD.rankData.map(r => `- "${r.kw}": ${r.result?.found ? '#'+r.result.position+' in Google Maps' : 'NOT in top 20'}`).join('\n') +
-      `\n\nRank Summary: ${top3.length} keywords in top 3, ${missing.length} keywords not ranking at all.`;
-  }
-
-  const prompt = `You are an elite Google Business Profile strategist delivering a sharp executive intelligence brief. Use ONLY the data provided — never fabricate metrics.
-
-BUSINESS: "${m.bizName}" | ${m.cat} | ${m.address}
-GBP SCORE: ${sc.overall}/100 | GRADE: ${grade(sc.overall).g}
-RATING: ${(m.avgRating||0).toFixed(1)}★ (${m.totalReviews} total reviews)
-PHOTO COUNT: ${realPhotos} photos visible on Google Maps
-WEBSITE: ${m.website?'YES — '+m.website:'NO — missing'}
-PHONE: ${m.phone?'YES — '+m.phone:'NO — missing'}
-BUSINESS HOURS: ${m.hours?'CONFIGURED':'NOT SET'}
-WEAK AREAS: ${weak||'No critical gaps'}
-
-${rankInsights}
-${IS_DEMO?'NOTE: This is DEMO DATA for illustration.':''}
-${isP?'NOTE: Posts and Q&A data not available from public API.':''}
-
-Write a precise intelligence brief using this EXACT structure:
-
-**MARKET POSITION**
-[2 sentences — where this business stands in local search RIGHT NOW. Reference specific keyword positions.]
-
-**3 CRITICAL REVENUE LEAKS**
-1. [Specific ranking gap or profile issue with real numbers — what it costs monthly]
-2. [Specific issue — quantify the lost leads or revenue]
-3. [Specific opportunity — quantify the upside]
-
-**30-DAY DOMINATION PLAN**
-1. [Specific executable action targeting their worst-ranking keywords]
-2. [Specific action with measurable expected outcome]
-3. [Specific action with measurable expected outcome]
-
-**COMPETITIVE THREAT**
-[One direct sentence — are competitors capturing leads this business is missing right now?]
-
-Max 280 words. Zero filler. Reference their actual keyword positions, review count, and rating.`
+  // Direct Anthropic API calls are blocked by CORS on GitHub Pages
+  // Using enhanced local intelligence analysis
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model: CONFIG.CLAUDE_MODEL,
-        max_tokens: 800,
-        messages: [{ role:'user', content: prompt }]
-      })
-    });
-    const data = await res.json();
-    const text = data.content?.map(b=>b.text||'').join('') || '';
-    if (text) {
-      document.getElementById('r-ai').innerHTML = '<div style="line-height:1.85;">' + text
-        .replace(/\*\*([^*]+)\*\*/g,'<strong style="color:var(--white);display:block;margin-top:14px;margin-bottom:4px;font-family:var(--ff);">$1</strong>')
-        .replace(/^(\d\.) /gm,'<span style="color:var(--gold);font-weight:700;">$1</span> ')
-        .replace(/\n\n/g,'<br>')
-        .replace(/\n/g,'<br>') + '</div>';
-    } else { fallbackAI(); }
-  } catch(e) { console.warn('[GBP] AI:', e); fallbackAI(); }
+    fallbackAI();
+  } catch(e) {
+    console.warn('[GBP] AI:', e);
+  }
 }
 
 function fallbackAI() {
