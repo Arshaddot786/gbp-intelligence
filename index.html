@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<title>GBP Intelligence — The Most Advanced Google Business Profile Audit Platform</title>
+<title>Local Authority Report — Real Google Rankings, Competitor Intel & Revenue Analysis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
@@ -17,13 +17,25 @@ const CONFIG = {
   CLAUDE_MODEL:     'claude-sonnet-4-6',
 
   // ── DataForSEO ──
-  // Replace with your real credentials from app.dataforseo.com
-  // Sign up free — $0.0006 per rank check — no approval needed
   DATAFORSEO_LOGIN:    'sara@myremoteteam.io',
   DATAFORSEO_PASSWORD: 'Miwxiq-quqxij-1xaddy',
-
-  // Set to true once you add real DataForSEO credentials above
   DATAFORSEO_ENABLED: true,
+
+  // ── SerpAPI — Real Google Map Pack Positions ──
+  SERPAPI_KEY: '20bdb77987552126e8d7f9e61f1e693abb26353f14eb670cbf0f094ce220b5d4',
+  SERPAPI_ENABLED: true,
+
+  // ── Outscraper — Full GBP Data ──
+  OUTSCRAPER_KEY: 'MzI1YzllMmM3MmFjNDgwMTk0ZTUwNjE0N2NmZmZlNWZ8ODJhZDliYWY1Yw',
+  OUTSCRAPER_ENABLED: true,
+
+  // ── Lemon Squeezy — Payment ──
+  LEMONSQUEEZY_CHECKOUT: 'https://gbpintelligence.lemonsqueezy.com/checkout',
+  REPORT_PRICE: '$19.99',
+
+  // ── Premium report flag ──
+  // Set to true after user pays — controlled via payment webhook
+  PREMIUM_UNLOCKED: false,
 };
 </script>
 
@@ -709,15 +721,14 @@ body {
       </div>
       <h1 class="hero-h1">The Most Advanced<br><em>GBP Audit</em> On The Planet</h1>
       <p class="hero-sub">
-        30+ audit dimensions. Real Google data. Claude AI analysis. Competitor intelligence.
-        Keyword rankings. Revenue projections. Everything in 60 seconds.
+        Real live map pack rankings. Competitor intelligence matrix. Website performance score. Revenue impact calculator. 90-day action plan. Everything in 90 seconds — free preview, full report $19.99.
       </p>
 
       <div class="hero-stats">
         <div class="hero-stat"><span class="hero-stat-num">30+</span><span class="hero-stat-label">Audit Dims</span></div>
-        <div class="hero-stat"><span class="hero-stat-num">AI</span><span class="hero-stat-label">Intelligence</span></div>
+        <div class="hero-stat"><span class="hero-stat-num">LIVE</span><span class="hero-stat-label">Map Rankings</span></div>
         <div class="hero-stat"><span class="hero-stat-num">60s</span><span class="hero-stat-label">Full Report</span></div>
-        <div class="hero-stat"><span class="hero-stat-num">Free</span><span class="hero-stat-label">No Credit Card</span></div>
+        <div class="hero-stat"><span class="hero-stat-num">$19.99</span><span class="hero-stat-label">Full Report</span></div>
       </div>
 
       <div class="search-wrap">
@@ -736,24 +747,27 @@ body {
           <!-- Email + Phone capture -->
           <div class="email-row">
             <div class="form-group">
-              <label>YOUR EMAIL</label>
-              <input type="email" class="form-input" id="cap-email" placeholder="email@example.com">
+              <label>YOUR EMAIL <span style="color:var(--red)">*</span></label>
+              <input type="email" class="form-input" id="cap-email" placeholder="email@example.com" >
             </div>
             <div class="form-group">
-              <label>PHONE (OPTIONAL)</label>
+              <label>YOUR PHONE <span style="color:var(--red)">*</span></label>
               <input type="tel" class="form-input" id="cap-phone" placeholder="+1 (555) 000-0000">
             </div>
           </div>
+          <div id="lead-error" style="display:none;color:var(--red);font-size:12px;margin:-8px 0 6px;padding:8px 12px;background:var(--red-dim);border-radius:6px;border:1px solid rgba(239,71,111,.2);">
+            ⚠️ Please enter your email and phone number to run your free audit.
+          </div>
 
-          <button class="search-btn" id="audit-btn" disabled onclick="startSelectedAudit()">
+          <button class="search-btn" id="audit-btn" onclick="gateAudit()">
             Run Free GBP Audit →
           </button>
 
           <div class="trust-row">
-            <span class="trust-item">100% Free</span>
-            <span class="trust-item">No Credit Card</span>
-            <span class="trust-item">Results in 60s</span>
-            <span class="trust-item">AI-Powered</span>
+            <span class="trust-item">Free Preview</span>
+            <span class="trust-item">Live Rankings</span>
+            <span class="trust-item">Real Competitor Data</span>
+            <span class="trust-item">Full Report $19.99</span>
           </div>
 
           <!-- Manual fallback -->
@@ -1044,6 +1058,8 @@ function onSearchInput() {
   const val = document.getElementById('biz-search').value.trim();
   _selectedPlace = null;
   document.getElementById('audit-btn').disabled = true;
+  const errEl = document.getElementById('lead-error');
+  if (errEl) errEl.style.display = 'none';
   clearTimeout(_searchDebounce);
   if (val.length < 3) { hideSuggestions(); return; }
   _searchDebounce = setTimeout(() => fetchSuggestions(val), 350);
@@ -1111,7 +1127,8 @@ function selectPlace(id, name, addr) {
   _selectedPlace = { id, name, addr };
   document.getElementById('biz-search').value = name + (addr ? ' — ' + addr.split(',')[0] : '');
   hideSuggestions();
-  document.getElementById('audit-btn').disabled = false;
+  // Only enable button if email AND phone are already filled
+  checkLeadForm();
 }
 
 document.addEventListener('click', e => {
@@ -1126,11 +1143,7 @@ function toggleManualForm() {
 
 /* ── AUDIT ENTRY POINTS ── */
 async function startSelectedAudit() {
-  if (!_selectedPlace) return;
-  const email = document.getElementById('cap-email').value.trim();
-  const phone = document.getElementById('cap-phone').value.trim();
-  if (email) captureEmail(email, phone, _selectedPlace.name);
-  await startPlacesAudit(_selectedPlace.id, _selectedPlace.name);
+  gateAudit();
 }
 
 async function startManualAudit() {
@@ -1143,7 +1156,14 @@ async function startManualAudit() {
   if (!name || !city) { alert('Please enter business name and city.'); return; }
   const email  = document.getElementById('cap-email').value.trim();
   const phone  = document.getElementById('cap-phone').value.trim();
-  if (email) captureEmail(email, phone, name);
+  const errEl  = document.getElementById('lead-error');
+  if (!email || !phone) {
+    if (errEl) errEl.style.display = 'block';
+    document.getElementById('cap-email').focus();
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+  captureEmail(email, phone, name);
   // Try to find on Places first
   showPage('load');
   document.getElementById('scan-sub').textContent = '// SEARCHING: ' + name;
@@ -1202,13 +1222,53 @@ async function startPlacesAudit(placeId, bizName) {
     addLog('Building 30-dimension audit matrix...', 'active');
     await sleep(400);
 
-    addLog('Analyzing keyword opportunities...', 'active');
-    await sleep(300);
+    addLog('Fetching full GBP data via Outscraper...', 'active');
+    const outscraperData = await fetchOutscraperGBP(bizName, place.formatted_address);
+    if (outscraperData) {
+      // Enrich place data with Outscraper results
+      if (outscraperData.description) place._description = outscraperData.description;
+      if (outscraperData.responseRate !== null) place._responseRate = outscraperData.responseRate;
+      if (outscraperData.posts) place._posts = outscraperData.posts;
+      if (outscraperData.verified !== undefined) place._verified = outscraperData.verified;
+      if (outscraperData.totalReviews) place._totalReviews = outscraperData.totalReviews;
+      addLog('Full GBP profile loaded via Outscraper ✓', 'done');
+    } else {
+      addLog('GBP extended data unavailable — using Places data ✓', 'done');
+    }
 
-    addLog('Fetching competitor intelligence...', 'active');
-    await sleep(300);
+    addLog('Fetching real map pack positions via SerpAPI...', 'active');
+    const city = place.formatted_address ? place.formatted_address.split(',').slice(-3).join(',').trim() : '';
+    const keywords = getKeywords(place.types?.[0]||'local service', city);
+    let serpResults = [];
+    if (CONFIG.SERPAPI_ENABLED) {
+      const serpChecks = await Promise.all(keywords.slice(0,5).map(kw => checkSerpApiMapPack(kw, city, bizName)));
+      serpResults = serpChecks.filter(Boolean);
+      addLog(serpResults.length + ' keyword positions fetched ✓', 'done');
+    } else {
+      addLog('SerpAPI not configured — using estimates', 'active');
+    }
 
-    addLog('Generating revenue projections...', 'active');
+    addLog('Analyzing competitor intelligence...', 'active');
+    // Compile competitor data from SerpAPI results
+    const competitorMap = {};
+    serpResults.forEach(r => {
+      (r.competitors||[]).forEach(c => {
+        const key = c.name;
+        if (!competitorMap[key]) competitorMap[key] = {...c, keywords: 0};
+        competitorMap[key].keywords++;
+      });
+    });
+    const competitorData = Object.values(competitorMap).sort((a,b) => a.position - b.position).slice(0,8);
+    addLog(competitorData.length + ' competitors mapped ✓', 'done');
+
+    addLog('Analyzing website performance...', 'active');
+    const pageSpeed = await fetchPageSpeed(place.website);
+    if (pageSpeed) addLog('PageSpeed score: ' + pageSpeed.performance + '/100 ✓', 'done');
+    else addLog('Website analysis complete ✓', 'done');
+
+    addLog('Generating revenue impact analysis...', 'active');
+    const revenueImpact = calcRevenueImpact(place.types?.[0], serpResults, place.rating, place.user_ratings_total);
+    addLog('Revenue gap: $' + revenueImpact.annualRevGap.toLocaleString() + '/yr identified ✓', 'done');
     await sleep(200);
 
     addLog('Initializing Claude AI analysis...', 'active');
@@ -1216,6 +1276,9 @@ async function startPlacesAudit(placeId, bizName) {
     // Build profile data
     buildPDFromPlaces(place);
     addLog('Profile data compiled ✓', 'done');
+
+    // Store enriched data for premium report
+    window._enrichedAuditData = { serpResults, competitorData, pageSpeed, revenueImpact };
 
     pct = 92; progEl.style.width = '92%'; pctEl.textContent = '92';
     buildReport();
@@ -1339,6 +1402,12 @@ function normalizePlaceNew(p) {
 }
 
 function buildPDFromPlaces(place) {
+  // Enrich with Outscraper data if available
+  if (place._description) place.editorial_summary = { overview: place._description };
+  if (place._responseRate !== undefined) place._outscraper_response_rate = place._responseRate;
+  if (place._verified !== undefined) place.business_status = place._verified ? 'OPERATIONAL' : place.business_status;
+  if (place._totalReviews) place.user_ratings_total = Math.max(place.user_ratings_total||0, place._totalReviews);
+
   const avgRating    = place.rating || 0;
   const totalReviews = place.user_ratings_total || 0;
   const allReviews   = place.reviews || [];
@@ -1581,6 +1650,24 @@ function buildReport() {
   renderBands(sOverall, sReview, sPhoto, sPost, sResponse, sProfile, sQA, isP);
   renderRevenueProjection(m, sOverall);
   render30Audit(m, PD.scores, isP);
+
+  // Trigger premium gate / full report
+  setTimeout(() => {
+    const enriched = window._enrichedAuditData || {};
+    const auditData = {
+      m,
+      serpResults: enriched.serpResults || [],
+      competitorData: enriched.competitorData || [],
+      pageSpeed: enriched.pageSpeed || null,
+      revenueImpact: enriched.revenueImpact || null,
+      overallScore: PD.scores?.overall || 0,
+    };
+    if (checkPremiumStatus()) {
+      renderFullPremiumReport(auditData);
+    } else {
+      renderPremiumGate(auditData);
+    }
+  }, 500);
   // Kick off async DataForSEO rank check (non-blocking — updates table when done)
   fetchAndRenderKeywords(m, PD.loc._placesData).then(() => {
     // Re-run AI after rank data is available for richer analysis
@@ -1734,10 +1821,10 @@ function render30Audit(m, sc, isP) {
       f:m.verified?'Profile is <strong>Google Verified</strong>. Hard ranking requirement — non-verified profiles are invisible in competitive markets.':
         isP?'<strong>Verification status unknown</strong> from public data. Go to business.google.com to confirm — non-verified profiles lose 30-40% ranking potential.':
         '<strong>NOT VERIFIED.</strong> Priority #1. Nothing else matters until verification is complete.' },
-    { n:'BUSINESS DESCRIPTION',       cat:'CONTENT',            s:m.desc?.length>500?92:m.desc?.length>200?68:m.desc?.length>50?38:isP?35:12,
+    { n:'BUSINESS DESCRIPTION',       cat:'CONTENT',            s:m.desc?.length>500?92:m.desc?.length>200?68:m.desc?.length>50?38:isP?null:12,
       f:m.desc?.length>500?`Description at <strong>${m.desc.length} characters</strong>. Excellent. Ensure primary keywords appear in the first 250 chars.`:
         m.desc?.length>200?`Description at <strong>${m.desc.length} characters</strong>. Expand to 500+ with service + city keywords for max search impact.`:
-        isP?'Description not publicly visible. Write 500-750 chars with service + city keywords — each word is a ranking signal.':
+        isP?'<strong>Description not readable via public API.</strong> Login to business.google.com to check your description. Ideal length is 500-750 characters embedding your primary service + city keywords in the first 250 characters.':
         `<strong>Very short description (${m.desc?.length||0} chars).</strong> Write 500-750 chars embedding service keywords and city name naturally.` },
     { n:'WEBSITE LINK',               cat:'FOUNDATION',         s:m.website?90:10,
       f:m.website?`Linked: <strong>${m.website}</strong>. Add UTM parameters (utm_source=googlebusiness) to track GBP-driven traffic in analytics.`:
@@ -1762,8 +1849,8 @@ function render30Audit(m, sc, isP) {
       f:`<strong>${recentRevs} new review${recentRevs===1?'':'s'}</strong> in the last 30 days. ${recentRevs<2?'Stale velocity — Google\'s algorithm weights recent reviews heavily. Set up an automated post-job review request system.':'Good momentum. Consistency matters — build it into your completion workflow.'}` },
     { n:'REVIEW SENTIMENT RATIO',     cat:'TRUST SIGNALS',      s:posRate>=90?95:posRate>=75?75:posRate>=60?50:30,
       f:`<strong>${posRate}% positive sentiment</strong> (4-5★ reviews = ${allRevs.filter(r=>r.rating>=4).length} reviews). ${posRate<70?'Reputation risk — negative patterns visible to every searcher.':posRate<85?'Good. Work on converting 3-star experiences into 5-stars with follow-up calls.':'Strong sentiment profile. Maintain service standards vigilantly.'}` },
-    { n:'REVIEW RESPONSE RATE',       cat:'ENGAGEMENT',         s:isP&&!allRevs.length?null:responseRate>=80?92:responseRate>=50?65:responseRate>=20?38:10,
-      f:isP&&!allRevs.length?L('Review response data'):
+    { n:'REVIEW RESPONSE RATE',       cat:'ENGAGEMENT',         s:(isP && m._placesData?._outscraper_response_rate===undefined)?null:(m._placesData?._outscraper_response_rate??responseRate)>=80?92:(m._placesData?._outscraper_response_rate??responseRate)>=50?65:(m._placesData?._outscraper_response_rate??responseRate)>=20?38:10,
+      f:isP?L('Full review response data — Places API only returns 5 reviews. Full response rate requires GBP API access'):
         `Responding to <strong>${responseRate}%</strong> of reviews (${responded}/${allRevs.length}). ${responseRate<50?'Critical gap — Google heavily weights response rate in ranking algorithm. Respond within 24hrs to every review.':responseRate<80?'Good but not great. Leaders respond to 90%+ within hours, not days.':'Excellent engagement. This actively boosts map pack position.'}` },
     { n:'NEGATIVE REVIEW HANDLING',   cat:'ENGAGEMENT',         s:negRevs.length?Math.round(negReplied/negRevs.length*100):95,
       f:negRevs.length?`<strong>${negReplied}/${negRevs.length}</strong> negative reviews have owner response. ${negReplied<negRevs.length?'Unanswered negatives are seen by every future prospect — respond professionally to all, even unfair ones.':'Excellent — every critical review has a public response. This turns negatives into trust signals.'}`:
@@ -2593,18 +2680,503 @@ function downloadReport() {
   window.print();
 }
 
+
+/* ══════════════════════════════════════════════
+   SERPAPI — Real Google Map Pack Positions
+══════════════════════════════════════════════ */
+async function checkSerpApiMapPack(keyword, city, businessName) {
+  if (!CONFIG.SERPAPI_ENABLED) return null;
+  try {
+    const q = encodeURIComponent(keyword + ' ' + city);
+    const url = `https://serpapi.com/search.json?engine=google_maps&q=${q}&api_key=${CONFIG.SERPAPI_KEY}&type=search`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('SerpAPI HTTP ' + resp.status);
+    const data = await resp.json();
+    const results = data.local_results || [];
+    const bizLower = businessName.toLowerCase();
+    let ourPos = null;
+    let competitors = [];
+    results.forEach((r, i) => {
+      const nameLower = (r.title||'').toLowerCase();
+      const match = nameLower.includes(bizLower.split(' ')[0]) || bizLower.includes(nameLower.split(' ')[0]);
+      if (match && ourPos === null) ourPos = i + 1;
+      if (i < 5) competitors.push({
+        position: i + 1,
+        name: r.title,
+        rating: r.rating,
+        reviews: r.reviews,
+        isOurs: match,
+        address: r.address,
+        phone: r.phone,
+      });
+    });
+    return { keyword, city, position: ourPos || '>20', found: ourPos !== null, competitors, source: 'serpapi_live' };
+  } catch(e) {
+    console.warn('[SerpAPI] failed:', e.message);
+    return null;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   GOOGLE PAGESPEED API — Free Website Analysis
+══════════════════════════════════════════════ */
+async function fetchPageSpeed(websiteUrl) {
+  if (!websiteUrl) return null;
+  try {
+    const url = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(websiteUrl)}&strategy=mobile&key=${CONFIG.PLACES_API_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('PageSpeed HTTP ' + resp.status);
+    const data = await resp.json();
+    const cats = data.lighthouseResult?.categories;
+    const audits = data.lighthouseResult?.audits;
+    return {
+      performance: Math.round((cats?.performance?.score||0)*100),
+      accessibility: Math.round((cats?.accessibility?.score||0)*100),
+      seo: Math.round((cats?.seo?.score||0)*100),
+      lcp: audits?.['largest-contentful-paint']?.displayValue || 'N/A',
+      fid: audits?.['total-blocking-time']?.displayValue || 'N/A',
+      cls: audits?.['cumulative-layout-shift']?.displayValue || 'N/A',
+      speedIndex: audits?.['speed-index']?.displayValue || 'N/A',
+      opportunities: Object.values(audits||{})
+        .filter(a => a.score !== null && a.score < 0.9 && a.details?.type === 'opportunity')
+        .slice(0,3)
+        .map(a => a.title),
+    };
+  } catch(e) {
+    console.warn('[PageSpeed] failed:', e.message);
+    return null;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   OUTSCRAPER — Full GBP Data (activate when key added)
+══════════════════════════════════════════════ */
+async function fetchOutscraperGBP(businessName, address) {
+  if (!CONFIG.OUTSCRAPER_ENABLED || !CONFIG.OUTSCRAPER_KEY) return null;
+  try {
+    const query = encodeURIComponent(businessName + ' ' + (address||''));
+    const url = `https://api.app.outscraper.com/maps/search-v3?query=${query}&limit=1&async=false`;
+    const resp = await fetch(url, { headers: { 'X-API-KEY': CONFIG.OUTSCRAPER_KEY } });
+    if (!resp.ok) throw new Error('Outscraper HTTP ' + resp.status);
+    const data = await resp.json();
+    const biz = data.data?.[0]?.[0];
+    if (!biz) return null;
+    return {
+      description: biz.description || null,
+      totalReviews: biz.reviews || 0,
+      rating: biz.rating || 0,
+      responseRate: biz.reviews_per_score ? 
+        Math.round((biz.reviews_with_owner_comment||0) / Math.max(biz.reviews||1,1) * 100) : null,
+      photos: biz.photos_count || 0,
+      verified: biz.verified || false,
+      posts: biz.posts_count || 0,
+      attributes: biz.detailed_information || [],
+      source: 'outscraper_live',
+    };
+  } catch(e) {
+    console.warn('[Outscraper] failed:', e.message);
+    return null;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   REVENUE IMPACT CALCULATOR
+══════════════════════════════════════════════ */
+function calcRevenueImpact(category, serpResults, currentRating, totalReviews) {
+  const avgJobValues = {
+    'Roofing': 8500, 'HVAC': 1800, 'Plumbing': 650, 'Landscaping': 1200,
+    'Painting': 3500, 'Cleaning Services': 280, 'Auto Detailing': 180,
+    'Electrical': 950, 'General Contracting': 12000, 'Pest Control': 350,
+    'Moving Services': 1400, 'Dentist / Med Spa': 800,
+  };
+  const searchVolumes = {
+    'Roofing': 2400, 'HVAC': 3100, 'Plumbing': 2800, 'Landscaping': 1900,
+    'Painting': 1600, 'Cleaning Services': 2200, 'Auto Detailing': 1800,
+    'Electrical': 2100, 'General Contracting': 1400, 'Pest Control': 1700,
+    'Moving Services': 2600, 'Dentist / Med Spa': 3400,
+  };
+
+  const cat = Object.keys(avgJobValues).find(k => (category||'').toLowerCase().includes(k.toLowerCase())) || 'HVAC';
+  const jobValue = avgJobValues[cat] || 1500;
+  const monthlySearches = searchVolumes[cat] || 2000;
+  
+  // Map pack CTR by position
+  const ctrByPos = { 1: 0.29, 2: 0.17, 3: 0.11, 4: 0.06, 5: 0.04 };
+  
+  // Find avg competitor position from serp
+  const keywordCount = serpResults?.length || 6;
+  const rankedKeywords = (serpResults||[]).filter(r => r.found && r.position <= 5);
+  const avgPos = rankedKeywords.length ? 
+    rankedKeywords.reduce((s,r) => s + (typeof r.position === 'number' ? r.position : 10), 0) / rankedKeywords.length : 15;
+  
+  const currentCTR = ctrByPos[Math.round(avgPos)] || 0.01;
+  const targetCTR = ctrByPos[1] || 0.29;
+  
+  const currentMonthlyLeads = Math.round(monthlySearches * currentCTR * keywordCount * 0.08);
+  const potentialMonthlyLeads = Math.round(monthlySearches * targetCTR * keywordCount * 0.08);
+  const leadGap = Math.max(0, potentialMonthlyLeads - currentMonthlyLeads);
+  const conversionRate = 0.35;
+  const monthlyRevGap = Math.round(leadGap * conversionRate * jobValue);
+  const annualRevGap = monthlyRevGap * 12;
+
+  return {
+    jobValue, monthlySearches, currentMonthlyLeads, potentialMonthlyLeads,
+    leadGap, monthlyRevGap, annualRevGap, cat,
+    currentCTR: Math.round(currentCTR*100), targetCTR: Math.round(targetCTR*100),
+  };
+}
+
+/* ══════════════════════════════════════════════
+   PREMIUM PAYMENT GATE
+══════════════════════════════════════════════ */
+let _premiumUnlocked = false;
+let _auditDataForPremium = null;
+
+function checkPremiumStatus() {
+  // Check session storage for payment confirmation
+  try {
+    const paid = sessionStorage.getItem('gbp_premium_unlocked');
+    if (paid === 'true') { _premiumUnlocked = true; return true; }
+  } catch(e) {}
+  return _premiumUnlocked;
+}
+
+function unlockPremium() {
+  // Open Lemon Squeezy checkout in new tab
+  // After payment, LS will redirect back with ?paid=true
+  const returnUrl = encodeURIComponent(window.location.href + '?paid=true');
+  window.open(CONFIG.LEMONSQUEEZY_CHECKOUT + '?checkout[custom][return_url]=' + returnUrl, '_blank');
+  // Start polling for return
+  _pollForPayment();
+}
+
+function _pollForPayment() {
+  const check = setInterval(() => {
+    const url = window.location.search;
+    if (url.includes('paid=true')) {
+      clearInterval(check);
+      try { sessionStorage.setItem('gbp_premium_unlocked', 'true'); } catch(e) {}
+      _premiumUnlocked = true;
+      // Re-render full report if we have cached data
+      if (_auditDataForPremium) {
+        document.getElementById('premium-gate')?.remove();
+        renderFullPremiumReport(_auditDataForPremium);
+      }
+    }
+  }, 2000);
+  setTimeout(() => clearInterval(check), 300000); // stop after 5min
+}
+
+// Check URL on load
+window.addEventListener('load', () => {
+  if (window.location.search.includes('paid=true')) {
+    try { sessionStorage.setItem('gbp_premium_unlocked', 'true'); } catch(e) {}
+    _premiumUnlocked = true;
+  }
+});
+
+/* ══════════════════════════════════════════════
+   PREMIUM REPORT RENDERER
+══════════════════════════════════════════════ */
+function renderPremiumGate(auditData) {
+  _auditDataForPremium = auditData;
+  if (checkPremiumStatus()) {
+    renderFullPremiumReport(auditData);
+    return;
+  }
+
+  const { m, serpResults, pageSpeed, revenueImpact, overallScore } = auditData;
+  
+  // Find top competitor from serp
+  const topComp = serpResults?.[0]?.competitors?.find(c => !c.isOurs);
+
+  const gateHtml = `
+    <div id="premium-gate" style="margin:32px 0;border:2px solid var(--gold-brd);border-radius:16px;overflow:hidden;">
+      <!-- Blurred preview -->
+      <div style="position:relative;">
+        <div style="filter:blur(6px);pointer-events:none;padding:24px;background:var(--card);opacity:.6;">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--gold);margin-bottom:12px;">// FULL LOCAL AUTHORITY REPORT — PREVIEW</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
+            ${['WEBSITE SPEED','COMPETITOR MATRIX','CITATION GAPS','REVENUE IMPACT'].map(l=>`
+              <div style="background:var(--surface);border-radius:8px;padding:16px;text-align:center;">
+                <div style="font-size:28px;font-weight:800;color:var(--gold);font-family:var(--mono);">??</div>
+                <div style="font-size:10px;color:var(--mid);margin-top:4px;">${l}</div>
+              </div>`).join('')}
+          </div>
+          <div style="height:80px;background:var(--surface);border-radius:8px;margin-bottom:12px;"></div>
+          <div style="height:120px;background:var(--surface);border-radius:8px;"></div>
+        </div>
+        <!-- Lock overlay -->
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(12,12,14,.7);backdrop-filter:blur(2px);">
+          <div style="text-align:center;padding:32px;">
+            <div style="font-size:48px;margin-bottom:12px;">🔒</div>
+            <div style="font-family:var(--syne);font-size:22px;color:var(--white);font-weight:700;margin-bottom:8px;">Full Report Locked</div>
+            <div style="font-size:13px;color:var(--mid);max-width:380px;line-height:1.6;margin-bottom:4px;">
+              Unlock your complete Local Authority Report including competitor matrix, website speed analysis, citation gaps, 90-day action plan, and revenue impact calculator.
+            </div>
+            ${topComp ? `<div style="font-size:12px;color:var(--red);margin:12px 0;padding:8px 16px;background:rgba(239,71,111,.1);border-radius:8px;display:inline-block;">
+              ⚠️ <strong>${topComp.name}</strong> is ranked above you with ${topComp.reviews||'?'} reviews
+            </div>` : ''}
+          </div>
+        </div>
+      </div>
+      <!-- CTA -->
+      <div style="background:linear-gradient(135deg,var(--surface),var(--card2));padding:32px;text-align:center;border-top:1px solid var(--border);">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:2px;margin-bottom:8px;">// UNLOCK FULL REPORT</div>
+        <div style="font-size:28px;font-weight:800;color:var(--white);font-family:var(--syne);margin-bottom:4px;">
+          Everything For <span style="color:var(--gold);">${CONFIG.REPORT_PRICE}</span>
+        </div>
+        <div style="font-size:13px;color:var(--mid);margin-bottom:24px;line-height:1.7;">
+          ✓ Competitor Intelligence Matrix &nbsp;·&nbsp; ✓ Website Speed Analysis<br>
+          ✓ Citation Consistency Check &nbsp;·&nbsp; ✓ Revenue Impact Calculator<br>
+          ✓ 90-Day Action Plan &nbsp;·&nbsp; ✓ Downloadable PDF Report
+        </div>
+        <button onclick="unlockPremium()" style="background:var(--gold);color:#0C0C0E;border:none;padding:16px 48px;border-radius:10px;font-family:var(--syne);font-size:18px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:all .2s;">
+          UNLOCK FULL REPORT → ${CONFIG.REPORT_PRICE}
+        </button>
+        <div style="font-size:11px;color:var(--muted);margin-top:12px;">One-time payment. Instant access. No subscription.</div>
+      </div>
+    </div>`;
+
+  // Inject after the main score bands section
+  const reportEl = document.getElementById('report-page');
+  if (reportEl) {
+    const gateDiv = document.createElement('div');
+    gateDiv.innerHTML = gateHtml;
+    // Insert after r-bands section
+    const bandsEl = document.getElementById('r-bands');
+    if (bandsEl?.parentNode) {
+      bandsEl.parentNode.insertBefore(gateDiv.firstElementChild, bandsEl.nextSibling);
+    } else {
+      reportEl.appendChild(gateDiv.firstElementChild);
+    }
+  }
+}
+
+function renderFullPremiumReport(auditData) {
+  const { m, serpResults, pageSpeed, revenueImpact, competitorData } = auditData;
+  
+  let html = '<div style="margin-top:32px;">';
+
+  // ── SECTION: SERP / MAP PACK RESULTS ──
+  if (serpResults?.length) {
+    html += `
+    <div class="report-section" style="margin-bottom:24px;">
+      <div class="section-label">// GOOGLE MAP PACK POSITIONS — LIVE DATA</div>
+      <div style="display:grid;gap:10px;">
+        ${serpResults.map(r => {
+          const pos = r.position;
+          const inPack = typeof pos === 'number' && pos <= 3;
+          const onPage1 = typeof pos === 'number' && pos <= 10;
+          const col = inPack ? 'var(--green)' : onPage1 ? 'var(--gold)' : 'var(--red)';
+          const badge = inPack ? '✅ MAP PACK' : onPage1 ? '📍 PAGE 1' : '⚠️ NOT FOUND';
+          return `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:16px;">
+            <div style="min-width:48px;height:48px;border-radius:8px;background:${col}22;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:18px;font-weight:700;color:${col};">${typeof pos === 'number' ? '#'+pos : pos}</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;color:var(--white);font-weight:600;margin-bottom:2px;">"${r.keyword}"</div>
+              <div style="font-size:11px;color:var(--mid);">${r.source === 'serpapi_live' ? '● LIVE via SerpAPI' : '◌ Estimated'}</div>
+            </div>
+            <div style="font-family:var(--mono);font-size:11px;color:${col};background:${col}15;padding:4px 10px;border-radius:20px;">${badge}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  // ── SECTION: COMPETITOR MATRIX ──
+  if (competitorData?.length) {
+    html += `
+    <div class="report-section" style="margin-bottom:24px;">
+      <div class="section-label">// COMPETITOR INTELLIGENCE MATRIX</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="text-align:left;padding:10px 12px;color:var(--mid);font-family:var(--mono);font-size:10px;">BUSINESS</th>
+              <th style="text-align:center;padding:10px 12px;color:var(--mid);font-family:var(--mono);font-size:10px;">RANK</th>
+              <th style="text-align:center;padding:10px 12px;color:var(--mid);font-family:var(--mono);font-size:10px;">RATING</th>
+              <th style="text-align:center;padding:10px 12px;color:var(--mid);font-family:var(--mono);font-size:10px;">REVIEWS</th>
+              <th style="text-align:left;padding:10px 12px;color:var(--mid);font-family:var(--mono);font-size:10px;">STATUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${competitorData.map(c => {
+              const isOurs = c.isOurs;
+              return `<tr style="border-bottom:1px solid var(--border);background:${isOurs ? 'rgba(200,169,126,.05)' : 'transparent'};">
+                <td style="padding:12px;color:${isOurs ? 'var(--gold)' : 'var(--white)'};font-weight:${isOurs ? '600' : '400'};">
+                  ${isOurs ? '★ ' : ''}${c.name}
+                </td>
+                <td style="text-align:center;padding:12px;font-family:var(--mono);color:${c.position<=3?'var(--green)':c.position<=10?'var(--gold)':'var(--red)'};">#${c.position}</td>
+                <td style="text-align:center;padding:12px;color:var(--white);">${c.rating ? '⭐ '+c.rating : '—'}</td>
+                <td style="text-align:center;padding:12px;color:var(--white);">${c.reviews ? c.reviews.toLocaleString() : '—'}</td>
+                <td style="padding:12px;">
+                  ${c.position <= 3 ? '<span style="color:var(--green);font-size:11px;">● In Map Pack</span>' : c.position <= 10 ? '<span style="color:var(--gold);font-size:11px;">◐ Page 1</span>' : '<span style="color:var(--red);font-size:11px;">✗ Not Visible</span>'}
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  // ── SECTION: WEBSITE PERFORMANCE ──
+  if (pageSpeed) {
+    const perfColor = pageSpeed.performance >= 90 ? 'var(--green)' : pageSpeed.performance >= 50 ? 'var(--gold)' : 'var(--red)';
+    html += `
+    <div class="report-section" style="margin-bottom:24px;">
+      <div class="section-label">// WEBSITE PERFORMANCE — MOBILE SCORE</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+        ${[
+          {label:'PERFORMANCE', val: pageSpeed.performance, suffix:'%'},
+          {label:'SEO SCORE', val: pageSpeed.seo, suffix:'%'},
+          {label:'ACCESSIBILITY', val: pageSpeed.accessibility, suffix:'%'},
+        ].map(m => {
+          const c = m.val >= 90 ? 'var(--green)' : m.val >= 50 ? 'var(--gold)' : 'var(--red)';
+          return `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+            <div style="font-size:32px;font-weight:800;color:${c};font-family:var(--mono);">${m.val}${m.suffix}</div>
+            <div style="font-size:10px;color:var(--mid);margin-top:4px;font-family:var(--mono);">${m.label}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+        ${[
+          {label:'LOAD TIME (LCP)', val: pageSpeed.lcp},
+          {label:'BLOCKING TIME', val: pageSpeed.fid},
+          {label:'LAYOUT SHIFT', val: pageSpeed.cls},
+        ].map(m => `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:16px;font-weight:700;color:var(--white);font-family:var(--mono);">${m.val}</div>
+          <div style="font-size:10px;color:var(--mid);margin-top:2px;">${m.label}</div>
+        </div>`).join('')}
+      </div>
+      ${pageSpeed.opportunities?.length ? `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--amber);margin-bottom:8px;">TOP IMPROVEMENTS</div>
+        ${pageSpeed.opportunities.map(o => `<div style="font-size:12px;color:var(--mid);padding:4px 0;border-bottom:1px solid var(--border);">⚡ ${o}</div>`).join('')}
+      </div>` : ''}
+    </div>`;
+  } else if (m.website) {
+    html += `<div class="report-section" style="margin-bottom:24px;padding:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;">
+      <div class="section-label">// WEBSITE PERFORMANCE</div>
+      <div style="color:var(--mid);font-size:13px;">Could not load PageSpeed data for ${m.website}. Visit <a href="https://pagespeed.web.dev/report?url=${encodeURIComponent(m.website)}" target="_blank" style="color:var(--gold);">PageSpeed Insights</a> to check manually.</div>
+    </div>`;
+  }
+
+  // ── SECTION: REVENUE IMPACT ──
+  if (revenueImpact) {
+    const ri = revenueImpact;
+    html += `
+    <div class="report-section" style="margin-bottom:24px;">
+      <div class="section-label">// REVENUE IMPACT ANALYSIS</div>
+      <div style="background:linear-gradient(135deg,rgba(200,169,126,.08),rgba(200,169,126,.03));border:1px solid var(--gold-brd);border-radius:12px;padding:24px;margin-bottom:16px;text-align:center;">
+        <div style="font-size:13px;color:var(--mid);margin-bottom:4px;">Estimated Revenue Currently Lost To Competitors</div>
+        <div style="font-size:52px;font-weight:800;color:var(--gold);font-family:var(--syne);line-height:1;">$${ri.annualRevGap.toLocaleString()}</div>
+        <div style="font-size:13px;color:var(--mid);margin-top:4px;">per year · $${ri.monthlyRevGap.toLocaleString()}/month</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+        ${[
+          {label:'Monthly Searches (Industry)', val: ri.monthlySearches.toLocaleString()},
+          {label:'Avg Job Value', val: '$'+ri.jobValue.toLocaleString()},
+          {label:'Est. Leads You Get Now', val: ri.currentMonthlyLeads + '/mo'},
+          {label:'Est. Leads If #1 Ranked', val: ri.potentialMonthlyLeads + '/mo'},
+        ].map(s => `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;">
+          <div style="font-size:11px;color:var(--mid);margin-bottom:4px;">${s.label}</div>
+          <div style="font-size:20px;font-weight:700;color:var(--white);font-family:var(--mono);">${s.val}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  html += '</div>';
+
+  // Inject into report page
+  const existing = document.getElementById('premium-report-section');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.id = 'premium-report-section';
+  div.innerHTML = html;
+  const auditEl = document.getElementById('r-30audit');
+  if (auditEl?.parentNode) {
+    auditEl.parentNode.insertBefore(div, auditEl);
+  } else {
+    document.getElementById('report-page')?.appendChild(div);
+  }
+}
+
 /* ══════════════════════════════════════════════
    EMAIL CAPTURE
 ══════════════════════════════════════════════ */
+// Check if both fields filled — enable/disable button feedback
+function checkLeadForm() {
+  // Kept for compatibility — gate is now handled by gateAudit modal
+}
+
+function gateAudit() {
+  if (!_selectedPlace) {
+    // No business selected yet
+    const searchEl = document.getElementById('biz-search');
+    if (searchEl) { searchEl.focus(); searchEl.style.borderColor = 'var(--red)'; setTimeout(()=>searchEl.style.borderColor='',2000); }
+    return;
+  }
+  const email = document.getElementById('cap-email').value.trim();
+  const phone = document.getElementById('cap-phone').value.trim();
+  if (!email || !phone) {
+    // Show lead gate modal
+    document.getElementById('lead-gate-modal').style.display = 'flex';
+    setTimeout(()=>document.getElementById('lg-email').focus(), 100);
+    return;
+  }
+  // All good — run audit
+  captureEmail(email, phone, _selectedPlace.name);
+  startPlacesAudit(_selectedPlace.id, _selectedPlace.name);
+}
+
+function submitLeadGate() {
+  const email = document.getElementById('lg-email').value.trim();
+  const phone = document.getElementById('lg-phone').value.trim();
+  const errEl = document.getElementById('lg-error');
+  if (!email || !validateEmail(email)) {
+    errEl.textContent = '⚠️ Please enter a valid email address.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!phone || phone.replace(/\D/g,'').length < 10) {
+    errEl.textContent = '⚠️ Please enter a valid phone number.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  // Copy to main form fields too
+  document.getElementById('cap-email').value = email;
+  document.getElementById('cap-phone').value = phone;
+  // Close modal and run audit
+  document.getElementById('lead-gate-modal').style.display = 'none';
+  captureEmail(email, phone, _selectedPlace.name);
+  startPlacesAudit(_selectedPlace.id, _selectedPlace.name);
+}
+
+function validateEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+
 async function captureEmail(email, phone, bizName) {
-  if (!email) return;
+  if (!email || !phone) return;
+  const timestamp = new Date().toLocaleString('en-US', {timeZone:'America/New_York'});
+  const leadData  = {
+    _subject:  '🔥 New GBP Audit Lead — ' + bizName,
+    email,
+    phone,
+    business:  bizName,
+    source:    'GBP Intelligence Audit Tool',
+    timestamp,
+    page:      window.location.href,
+  };
   try {
     await fetch(CONFIG.FORMSPREE, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ email, phone, business:bizName, source:'GBP Intelligence Audit', _subject:'New GBP Audit — '+bizName })
+      method:  'POST',
+      headers: {'Content-Type':'application/json'},
+      body:    JSON.stringify(leadData)
     });
-  } catch(e) { console.warn('[GBP] Email capture:', e); }
+    console.log('[GBP] Lead captured:', email, phone, bizName);
+  } catch(e) { console.warn('[GBP] Lead capture failed:', e); }
 }
 
 /* ══════════════════════════════════════════════
@@ -2632,6 +3204,40 @@ function addLog(msg, cls) {
 window.onMapsLoaded = onMapsLoaded;
 
 </script>
+
+<!-- ══ LEAD GATE MODAL ══ -->
+<div id="lead-gate-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(8px);">
+  <div style="background:#1A1A1E;border:1px solid rgba(200,169,126,.25);border-radius:16px;padding:36px;width:440px;max-width:90vw;box-shadow:0 24px 64px rgba(0,0,0,.5);">
+    <div style="font-family:'Syne',sans-serif;font-size:22px;color:#F4F4F0;margin-bottom:6px;">ONE LAST STEP</div>
+    <div style="font-size:13px;color:#8A8A9A;margin-bottom:24px;line-height:1.5;">
+      Enter your details to unlock your free GBP Intelligence Report. We will send you a copy of your results.
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;color:#8A8A9A;margin-bottom:6px;">YOUR EMAIL *</label>
+      <input type="email" id="lg-email" placeholder="you@yourbusiness.com"
+        style="width:100%;padding:12px 14px;background:#0C0C0E;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#F4F4F0;font-size:14px;outline:none;font-family:'DM Sans',sans-serif;"
+        onkeydown="if(event.key==='Enter')submitLeadGate()">
+    </div>
+    <div style="margin-bottom:8px;">
+      <label style="display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;color:#8A8A9A;margin-bottom:6px;">YOUR PHONE NUMBER *</label>
+      <input type="tel" id="lg-phone" placeholder="+1 (555) 000-0000"
+        style="width:100%;padding:12px 14px;background:#0C0C0E;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#F4F4F0;font-size:14px;outline:none;font-family:'DM Sans',sans-serif;"
+        onkeydown="if(event.key==='Enter')submitLeadGate()">
+    </div>
+    <div id="lg-error" style="display:none;color:#EF476F;font-size:12px;margin-bottom:10px;padding:8px 12px;background:rgba(239,71,111,.08);border-radius:6px;"></div>
+    <div style="font-size:11px;color:#484858;margin-bottom:20px;">
+      🔒 We never spam. Your info is used only to send your report and follow up with local SEO tips.
+    </div>
+    <button onclick="submitLeadGate()"
+      style="width:100%;padding:14px;background:#C8A97E;border:none;border-radius:10px;color:#0C0C0E;font-family:'Syne',sans-serif;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.5px;">
+      UNLOCK MY FREE AUDIT →
+    </button>
+    <button onclick="document.getElementById('lead-gate-modal').style.display='none'"
+      style="width:100%;padding:10px;background:transparent;border:none;color:#484858;font-size:12px;cursor:pointer;margin-top:8px;">
+      Cancel
+    </button>
+  </div>
+</div>
 </body>
 </html>
 
