@@ -31,7 +31,7 @@ const CONFIG = {
 
   // ── Lemon Squeezy — Payment ──
   LEMONSQUEEZY_CHECKOUT: 'https://gbpintelligence.lemonsqueezy.com/checkout',
-  REPORT_PRICE: '$19.99',
+  REPORT_PRICE: 'Free',
 
   // ── Premium report flag ──
   // Set to true after user pays — controlled via payment webhook
@@ -721,7 +721,7 @@ body {
       </div>
       <h1 class="hero-h1">The Most Advanced<br><em>GBP Audit</em> On The Planet</h1>
       <p class="hero-sub">
-        Real live map pack rankings. Competitor intelligence matrix. Website performance score. Revenue impact calculator. 90-day action plan. Everything in 90 seconds — free preview, full report $19.99.
+        Real live map pack rankings. Competitor intelligence matrix. Website performance score. Revenue impact calculator. 90-day action plan. Everything in 90 seconds — free preview, completely free.
       </p>
 
       <div class="hero-stats">
@@ -747,11 +747,11 @@ body {
           <!-- Email + Phone capture -->
           <div class="email-row">
             <div class="form-group">
-              <label>YOUR EMAIL <span style="color:var(--red)">*</span></label>
+              <label>YOUR EMAIL <span style="color:var(--muted)">(optional)</span></label>
               <input type="email" class="form-input" id="cap-email" placeholder="email@example.com" >
             </div>
             <div class="form-group">
-              <label>YOUR PHONE <span style="color:var(--red)">*</span></label>
+              <label>YOUR PHONE <span style="color:var(--muted)">(optional — get your report emailed)</span></label>
               <input type="tel" class="form-input" id="cap-phone" placeholder="+1 (555) 000-0000">
             </div>
           </div>
@@ -759,15 +759,15 @@ body {
             ⚠️ Please enter your email and phone number to run your free audit.
           </div>
 
-          <button class="search-btn" id="audit-btn" onclick="gateAudit()" style="opacity:1;cursor:pointer;">
-            Run Free GBP Audit →
+          <button class="search-btn" id="audit-btn" onclick="runFreeAudit()" style="opacity:1;cursor:pointer;">
+            Run Free Audit →
           </button>
 
           <div class="trust-row">
             <span class="trust-item">Free Preview</span>
             <span class="trust-item">Live Rankings</span>
             <span class="trust-item">Real Competitor Data</span>
-            <span class="trust-item">Full Report $19.99</span>
+            <span class="trust-item">Free · No Credit Card</span>
           </div>
 
           <!-- Manual fallback -->
@@ -997,7 +997,7 @@ body {
     <!-- CTA -->
     <div class="report-cta">
       <h3>Want Us to Fix All of This For You?</h3>
-      <p>Our team handles your entire GBP optimization — photos, posts, reviews, keywords, competitor monitoring. Done for you, every month.</p>
+      <p>Want us to fix all of this for you? Our team handles your entire GBP optimization — photos, posts, reviews, keywords, competitor monitoring. Done for you, every month. Starting at $297/month.</p>
       <div class="cta-btns">
         <button class="btn-gold" id="cal-btn" onclick="window.open(CONFIG.CALENDLY,'_blank')">Book Free Strategy Call →</button>
         <button class="btn-outline" onclick="showPage('home')">Run Another Audit</button>
@@ -1235,7 +1235,17 @@ async function startPlacesAudit(placeId, bizName) {
     }
 
     addLog('Fetching real map pack positions via SerpAPI...', 'active');
-    const city = place.formatted_address ? place.formatted_address.split(',').slice(-3).join(',').trim() : '';
+    // Extract proper city from address e.g. "1234 St, Sugar Hill, GA 30518, USA" → "Sugar Hill, GA"
+    const addrParts = (place.formatted_address || '').split(',').map(s => s.trim());
+    let city = '';
+    if (addrParts.length >= 3) {
+      // Parts: [street, city, state+zip, country] → take city + state (parts -3 and -2)
+      const cityPart  = addrParts[addrParts.length - 3] || '';
+      const statePart = (addrParts[addrParts.length - 2] || '').replace(/\d+/g,'').trim();
+      city = cityPart + (statePart ? ', ' + statePart : '');
+    } else {
+      city = place.formatted_address || '';
+    }
     const keywords = getKeywordsForBusiness(place.types?.[0]||'local service', city);
     let serpResults = [];
     if (CONFIG.SERPAPI_ENABLED) {
@@ -1660,11 +1670,7 @@ function buildReport() {
       revenueImpact: enriched.revenueImpact || null,
       overallScore: PD.scores?.overall || 0,
     };
-    if (checkPremiumStatus()) {
-      renderFullPremiumReport(auditData);
-    } else {
-      renderPremiumGate(auditData);
-    }
+    renderFullPremiumReport(auditData);
   }, 500);
   // Kick off async DataForSEO rank check (non-blocking — updates table when done)
   fetchAndRenderKeywords(m, PD.loc._placesData).then(() => {
@@ -1819,10 +1825,10 @@ function render30Audit(m, sc, isP) {
       f:m.verified?'Profile is <strong>Google Verified</strong>. Hard ranking requirement — non-verified profiles are invisible in competitive markets.':
         isP?'<strong>Verification status unknown</strong> from public data. Go to business.google.com to confirm — non-verified profiles lose 30-40% ranking potential.':
         '<strong>NOT VERIFIED.</strong> Priority #1. Nothing else matters until verification is complete.' },
-    { n:'BUSINESS DESCRIPTION',       cat:'CONTENT',            s:m.desc?.length>500?92:m.desc?.length>200?68:m.desc?.length>50?38:isP?null:12,
+    { n:'BUSINESS DESCRIPTION',       cat:'CONTENT',            s:m.desc?.length>500?92:m.desc?.length>200?68:m.desc?.length>50?38:45,
       f:m.desc?.length>500?`Description at <strong>${m.desc.length} characters</strong>. Excellent. Ensure primary keywords appear in the first 250 chars.`:
         m.desc?.length>200?`Description at <strong>${m.desc.length} characters</strong>. Expand to 500+ with service + city keywords for max search impact.`:
-        isP?'<strong>Description not readable via public API.</strong> Login to business.google.com to check your description. Ideal length is 500-750 characters embedding your primary service + city keywords in the first 250 characters.':
+        isP?'<strong>Check your GBP description</strong> — login to business.google.com. Ideal length is 500-750 characters. Put your primary service + city keywords in the first 250 characters for maximum ranking impact.':
         `<strong>Very short description (${m.desc?.length||0} chars).</strong> Write 500-750 chars embedding service keywords and city name naturally.` },
     { n:'WEBSITE LINK',               cat:'FOUNDATION',         s:m.website?90:10,
       f:m.website?`Linked: <strong>${m.website}</strong>. Add UTM parameters (utm_source=googlebusiness) to track GBP-driven traffic in analytics.`:
@@ -1847,8 +1853,8 @@ function render30Audit(m, sc, isP) {
       f:`<strong>${recentRevs} new review${recentRevs===1?'':'s'}</strong> in the last 30 days. ${recentRevs<2?'Stale velocity — Google\'s algorithm weights recent reviews heavily. Set up an automated post-job review request system.':'Good momentum. Consistency matters — build it into your completion workflow.'}` },
     { n:'REVIEW SENTIMENT RATIO',     cat:'TRUST SIGNALS',      s:posRate>=90?95:posRate>=75?75:posRate>=60?50:30,
       f:`<strong>${posRate}% positive sentiment</strong> (4-5★ reviews = ${allRevs.filter(r=>r.rating>=4).length} reviews). ${posRate<70?'Reputation risk — negative patterns visible to every searcher.':posRate<85?'Good. Work on converting 3-star experiences into 5-stars with follow-up calls.':'Strong sentiment profile. Maintain service standards vigilantly.'}` },
-    { n:'REVIEW RESPONSE RATE',       cat:'ENGAGEMENT',         s:(isP && m._placesData?._outscraper_response_rate===undefined)?null:(m._placesData?._outscraper_response_rate??responseRate)>=80?92:(m._placesData?._outscraper_response_rate??responseRate)>=50?65:(m._placesData?._outscraper_response_rate??responseRate)>=20?38:10,
-      f:isP?L('Full review response data — Places API only returns 5 reviews. Full response rate requires GBP API access'):
+    { n:'REVIEW RESPONSE RATE',       cat:'ENGAGEMENT',         s:responseRate>=80?92:responseRate>=50?65:responseRate>=20?38:isP?30:10,
+      f:isP?'<strong>Review response rate</strong> — respond to every Google review within 24 hours. Google weights response rate heavily in local rankings. Aim for 90%+ response rate. Visit your GBP dashboard to see and respond to all reviews.':
         `Responding to <strong>${responseRate}%</strong> of reviews (${responded}/${allRevs.length}). ${responseRate<50?'Critical gap — Google heavily weights response rate in ranking algorithm. Respond within 24hrs to every review.':responseRate<80?'Good but not great. Leaders respond to 90%+ within hours, not days.':'Excellent engagement. This actively boosts map pack position.'}` },
     { n:'NEGATIVE REVIEW HANDLING',   cat:'ENGAGEMENT',         s:negRevs.length?Math.round(negReplied/negRevs.length*100):95,
       f:negRevs.length?`<strong>${negReplied}/${negRevs.length}</strong> negative reviews have owner response. ${negReplied<negRevs.length?'Unanswered negatives are seen by every future prospect — respond professionally to all, even unfair ones.':'Excellent — every critical review has a public response. This turns negatives into trust signals.'}`:
@@ -1856,7 +1862,7 @@ function render30Audit(m, sc, isP) {
 
     // VISUAL PRESENCE
     { n:'PHOTO COUNT',                cat:'VISUAL PRESENCE',    s:scorePhotos(m.photoCount),
-      f:`<strong>${m.photoCount} photos</strong> visible on Google Maps. ${m.photoCount<10?'Critical gap — profiles with 100+ photos receive 520% more calls and 2,700% more direction requests.':m.photoCount<25?'Below benchmark. Add project photos, team shots, and before/after comparisons urgently.':m.photoCount<100?'Building up. Target 100+ for maximum map pack visibility.':'Strong visual presence. Keep adding fresh content monthly.'}` },
+      f:`<strong>${m.photoCount}+ photos</strong> on Google Maps (Places API previews up to 10 — your actual count may be higher). ${m.photoCount<10?'Ensure you have 100+ photos — profiles with 100+ receive 520% more calls.':m.photoCount<25?'Keep adding photos. Target 100+ for maximum map pack visibility. Note: your actual photo count visible on Google may be higher than shown here.':'Good photo presence. Keep adding fresh content monthly. Check your actual count directly on Google Maps.'}` },
     { n:'PHOTO DIVERSITY & QUALITY',  cat:'VISUAL PRESENCE',    s:m.photoCount>=20?70:m.photoCount>=10?50:25,
       f:`Categories needed: exterior shots, interior/workspace, team photos, equipment, project work (before/after), customer interaction. ${m.photoCount<10?'Currently too few to assess diversity — upload immediately.':'Ensure all 6 categories are covered for maximum engagement.'}` },
     { n:'PHOTO RECENCY',              cat:'VISUAL PRESENCE',    s:isP?40:35,
@@ -3040,6 +3046,26 @@ function renderFullPremiumReport(auditData) {
 // Check if both fields filled — enable/disable button feedback
 function checkLeadForm() {
   // Kept for compatibility — gate is now handled by gateAudit modal
+}
+
+
+function runFreeAudit() {
+  if (!_selectedPlace) {
+    const searchEl = document.getElementById('biz-search');
+    if (searchEl) { 
+      searchEl.focus(); 
+      searchEl.style.borderColor = 'var(--red)'; 
+      searchEl.placeholder = 'Please search and select your business first...';
+      setTimeout(()=>{ searchEl.style.borderColor=''; searchEl.placeholder='Type your business name + city...'; }, 3000); 
+    }
+    return;
+  }
+  // Capture email/phone if provided (optional)
+  const email = document.getElementById('cap-email').value.trim();
+  const phone = document.getElementById('cap-phone').value.trim();
+  if (email && phone) captureEmail(email, phone, _selectedPlace.name);
+  // Run audit immediately — no gate
+  startPlacesAudit(_selectedPlace.id, _selectedPlace.name);
 }
 
 function gateAudit() {
