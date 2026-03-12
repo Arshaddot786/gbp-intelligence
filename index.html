@@ -18,7 +18,7 @@ const CONFIG = {
 
   // ── DataForSEO ──
   DATAFORSEO_LOGIN:    'sara@myremoteteam.io',
-  DATAFORSEO_PASSWORD: 'Miwxiq-quqxij-1xaddy',
+  DATAFORSEO_PASSWORD: 'YOUR_DATAFORSEO_PASSWORD',
   DATAFORSEO_ENABLED: true,
 
   // ── SerpAPI — Real Google Map Pack Positions ──
@@ -759,7 +759,7 @@ body {
             ⚠️ Please enter your email and phone number to run your free audit.
           </div>
 
-          <button class="search-btn" id="audit-btn" onclick="gateAudit()">
+          <button class="search-btn" id="audit-btn" onclick="gateAudit()" style="opacity:1;cursor:pointer;">
             Run Free GBP Audit →
           </button>
 
@@ -1057,9 +1057,7 @@ let _searchDebounce = null;
 function onSearchInput() {
   const val = document.getElementById('biz-search').value.trim();
   _selectedPlace = null;
-  document.getElementById('audit-btn').disabled = true;
-  const errEl = document.getElementById('lead-error');
-  if (errEl) errEl.style.display = 'none';
+  // button stays enabled — gateAudit handles validation
   clearTimeout(_searchDebounce);
   if (val.length < 3) { hideSuggestions(); return; }
   _searchDebounce = setTimeout(() => fetchSuggestions(val), 350);
