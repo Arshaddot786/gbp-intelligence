@@ -359,7 +359,7 @@ body {
 .band-score { font-family:var(--ff); font-size:32px; font-weight:800; line-height:1; margin-bottom:6px; }
 .band-bar-wrap { height:4px; background:var(--border); border-radius:2px; }
 .band-bar { height:100%; border-radius:2px; transition:width 1.5s cubic-bezier(.4,0,.2,1); width:0; }
-.band-locked { opacity:.4; }
+.band-card { opacity:.4; }
 
 /* Section headers */
 .sec-head {
@@ -728,7 +728,7 @@ body {
         <div class="hero-stat"><span class="hero-stat-num">30+</span><span class="hero-stat-label">Audit Dims</span></div>
         <div class="hero-stat"><span class="hero-stat-num">LIVE</span><span class="hero-stat-label">Map Rankings</span></div>
         <div class="hero-stat"><span class="hero-stat-num">60s</span><span class="hero-stat-label">Full Report</span></div>
-        <div class="hero-stat"><span class="hero-stat-num">$19.99</span><span class="hero-stat-label">Full Report</span></div>
+        <div class="hero-stat"><span class="hero-stat-num">Free</span><span class="hero-stat-label">Always Free</span></div>
       </div>
 
       <div class="search-wrap">
@@ -1725,12 +1725,12 @@ function renderBands(overall, review, photo, post, response, profile, qa, isP) {
     const locked = b.score === null;
     const s = b.score ?? 0;
     const c = scoreColor(s);
-    return `<div class="band-card${locked?' band-locked':''}">
+    return `<div class="band-card${locked?' band-card':''}">
       <div class="band-card-accent" style="background:${locked?'var(--muted)':c};"></div>
       <div class="band-label">${b.label}</div>
       <div class="band-score" style="color:${locked?'var(--muted)':c}">${locked?'—':s}</div>
       <div class="band-bar-wrap"><div class="band-bar" data-w="${s}" style="background:${locked?'var(--muted)':c};"></div></div>
-      ${locked?'<div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px;">🔒 ENHANCED DATA</div>':''}
+      ${locked?'<div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px;">EST.</div>':''}
     </div>`;
   }).join('');
 }
@@ -1807,6 +1807,9 @@ function render30Audit(m, sc, isP) {
   const allRevs = m.allReviews || [];
   const responded    = allRevs.filter(r=>r.reviewReply?.comment).length;
   const responseRate = allRevs.length ? Math.round(responded/allRevs.length*100) : 0;
+  // Note: Places API returns max 5 reviews — response rate from 5 reviews is not representative
+  const responseRateDisplay = allRevs.length >= 5 ? 'Check GBP' : responseRate + '%';
+  const respondedDisplay = allRevs.length >= 5 ? 'See GBP' : responded;
   const recentRevs   = allRevs.filter(r=>(Date.now()-r.time*1000)<30*864e5).length;
   const negRevs      = allRevs.filter(r=>r.rating<=2);
   const negReplied   = negRevs.filter(r=>r.reviewReply?.comment).length;
@@ -1817,7 +1820,7 @@ function render30Audit(m, sc, isP) {
   const eventPosts   = (m.postList||[]).filter(p=>p.topicType==='EVENT').length;
   const ctaPosts     = (m.postList||[]).filter(p=>p.callToAction?.actionType).length;
 
-  const L = (t) => `<span style="color:var(--amber)">🔒 ${t} — available via full GMB API scan.</span>`;
+  const L = (t) => `<span style="color:var(--amber)"> ${t} — available via full GMB API scan.</span>`;
 
   const dims = [
     // FOUNDATION
@@ -1842,7 +1845,7 @@ function render30Audit(m, sc, isP) {
     { n:'PRIMARY CATEGORY MATCH',     cat:'FOUNDATION',         s:m.cat?85:20,
       f:`Category: <strong>${m.cat||'Unknown'}</strong>. This is your #1 keyword ranking signal — ensure it exactly matches your core service type. Wrong category = wrong searches.` },
     { n:'PROFILE COMPLETENESS',       cat:'FOUNDATION',         s:scoreProfile(m.desc,m.website,m.phone,m.cat,m.hours),
-      f:`Fields present: website (${m.website?'✓':'✗'}), phone (${m.phone?'✓':'✗'}), hours (${m.hours?'✓':'✗'}), description (${m.desc?.length||0} chars). Each missing field suppresses ranking independently.` },
+      f:`Fields present: website (${m.website?'✓':'✗'}), phone (${m.phone?'✓':'✗'}), hours (${m.hours?'✓':'✗'}), description (${m.desc?.length > 0 ? m.desc.length+' chars ✓' : 'check GBP dashboard'}). Each missing field suppresses ranking independently.` },
 
     // TRUST SIGNALS
     { n:'REVIEW VOLUME',              cat:'TRUST SIGNALS',      s:scoreReviews(m.avgRating,m.totalReviews),
@@ -1870,23 +1873,23 @@ function render30Audit(m, sc, isP) {
         'Add minimum 2 new photos monthly. Google rewards freshness — stale photo libraries signal an inactive business.' },
 
     // CONTENT & POSTS
-    { n:'POST FREQUENCY',             cat:'CONTENT STRATEGY',   s:isP?null:scorePosts(m.postList),
+    { n:'POST FREQUENCY',             cat:'CONTENT STRATEGY',   s:20,
       f:isP?L('Google Posts activity'):
         `<strong>${recentPosts} post${recentPosts===1?'':'s'}</strong> in last 30 days. ${recentPosts===0?'DEAD PROFILE — Zero posts signal disengagement to Google. Start posting 2-3× per week immediately.':recentPosts<4?'Inconsistent. Post minimum 3× per week for sustained ranking impact.':'Good cadence. Consistency over perfection — keep the schedule.'}` },
-    { n:'OFFER POSTS',                cat:'CONTENT STRATEGY',   s:isP?null:offerPosts>=2?88:offerPosts>=1?55:10,
+    { n:'OFFER POSTS',                cat:'CONTENT STRATEGY',   s:20,
       f:isP?L('Offer post activity'):
         `<strong>${offerPosts} active offer${offerPosts===1?'':'s'}</strong>. Offer posts generate the highest click-through rates. ${offerPosts===0?'Create one immediately — even \"Free Estimate\" or \"10% Off\" qualifies.':'Refresh monthly with seasonal promotions.'}` },
-    { n:'EVENT POSTS',                cat:'CONTENT STRATEGY',   s:isP?null:eventPosts>=2?80:eventPosts>=1?50:15,
+    { n:'EVENT POSTS',                cat:'CONTENT STRATEGY',   s:20,
       f:isP?L('Event post activity'):
         `<strong>${eventPosts} event post${eventPosts===1?'':'s'}</strong>. Events signal community presence. Use for seasonal promotions, specials, and limited-time offers.` },
-    { n:'POSTS WITH CTA BUTTONS',     cat:'CONVERSION',         s:isP?null:ctaPosts>=4?88:ctaPosts>=2?65:ctaPosts>=1?40:12,
+    { n:'POSTS WITH CTA BUTTONS',     cat:'CONVERSION',         s:20,
       f:isP?L('CTA button usage'):
         `<strong>${ctaPosts} post${ctaPosts===1?'':'s'}</strong> with call-to-action buttons. CTA posts convert at 3× the rate of plain text posts. Add CALL, BOOK, or LEARN MORE to every post.` },
     { n:'CONTENT KEYWORD SIGNALS',    cat:'CONTENT STRATEGY',   s:m.desc?.length>400?82:m.desc?.length>200?58:m.desc?.length>50?35:20,
       f:`Keyword density across all content. ${m.desc?.length>400?'Good content length for keyword relevance. Verify primary trade + city name appear in first 250 characters.':'Weak keyword signals from thin content. Expand description and add detailed service listings with location-specific language.'}` },
 
     // ENGAGEMENT
-    { n:'Q&A SECTION USAGE',          cat:'ENGAGEMENT',         s:isP?null:scoreQA(m.qaList),
+    { n:'Q&A SECTION USAGE',          cat:'ENGAGEMENT',         s:25,
       f:isP?L('Q&A data'):
         `<strong>${m.qaList.length} Q&A pair${m.qaList.length===1?'':'s'}</strong>. ${m.qaList.length===0?'EMPTY. This is free keyword real estate — seed 15+ questions yourself (as customers) with keyword-rich answers covering common objections, pricing, and process.':m.qaList.length<8?'Underutilized. Add service-specific questions that address common objections and include city/trade keywords.':'Good coverage. Review questions monthly and add new ones as your services evolve.'}` },
     { n:'DIRECT MESSAGES',            cat:'ENGAGEMENT',         s:55,
@@ -1909,7 +1912,7 @@ function render30Audit(m, sc, isP) {
         <div class="audit-card-accent" style="background:var(--muted);"></div>
         <div class="audit-card-top">
           <div><div class="audit-name">${d.n}</div><div class="audit-cat">${d.cat}</div></div>
-          <div style="font-size:22px;line-height:1;">🔒</div>
+          <div style="font-size:22px;line-height:1;"></div>
         </div>
         <div class="audit-finding">${d.f}</div>
       </div>`;
@@ -2846,7 +2849,7 @@ function renderPremiumGate(auditData) {
         <!-- Lock overlay -->
         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(12,12,14,.7);backdrop-filter:blur(2px);">
           <div style="text-align:center;padding:32px;">
-            <div style="font-size:48px;margin-bottom:12px;">🔒</div>
+            <div style="font-size:48px;margin-bottom:12px;"></div>
             <div style="font-family:var(--syne);font-size:22px;color:var(--white);font-weight:700;margin-bottom:8px;">Full Report Locked</div>
             <div style="font-size:13px;color:var(--mid);max-width:380px;line-height:1.6;margin-bottom:4px;">
               Unlock your complete Local Authority Report including competitor matrix, website speed analysis, citation gaps, 90-day action plan, and revenue impact calculator.
@@ -3183,7 +3186,7 @@ window.onMapsLoaded = onMapsLoaded;
     </div>
     <div id="lg-error" style="display:none;color:#EF476F;font-size:12px;margin-bottom:10px;padding:8px 12px;background:rgba(239,71,111,.08);border-radius:6px;"></div>
     <div style="font-size:11px;color:#484858;margin-bottom:20px;">
-      🔒 We never spam. Your info is used only to send your report and follow up with local SEO tips.
+       We never spam. Your info is used only to send your report and follow up with local SEO tips.
     </div>
     <button onclick="submitLeadGate()"
       style="width:100%;padding:14px;background:#C8A97E;border:none;border-radius:10px;color:#0C0C0E;font-family:'Syne',sans-serif;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.5px;">
