@@ -1235,14 +1235,21 @@ async function startPlacesAudit(placeId, bizName) {
     }
 
     addLog('Fetching real map pack positions via SerpAPI...', 'active');
-    // Extract proper city from address e.g. "1234 St, Sugar Hill, GA 30518, USA" → "Sugar Hill, GA"
+    // Extract proper city, state from address
+    // e.g. "300 Morgan Ave Suite P, Brooklyn, NY 11211, USA" → "Brooklyn, NY"
     const addrParts = (place.formatted_address || '').split(',').map(s => s.trim());
     let city = '';
-    if (addrParts.length >= 3) {
-      // Parts: [street, city, state+zip, country] → take city + state (parts -3 and -2)
+    if (addrParts.length >= 4) {
+      // Format: street, city, state+zip, country
       const cityPart  = addrParts[addrParts.length - 3] || '';
-      const statePart = (addrParts[addrParts.length - 2] || '').replace(/\d+/g,'').trim();
-      city = cityPart + (statePart ? ', ' + statePart : '');
+      const stateZip  = addrParts[addrParts.length - 2] || '';
+      const stateOnly = stateZip.replace(/[0-9]/g,'').trim().split(' ')[0];
+      city = cityPart + (stateOnly ? ', ' + stateOnly : '');
+    } else if (addrParts.length === 3) {
+      const cityPart  = addrParts[0] || '';
+      const stateZip  = addrParts[1] || '';
+      const stateOnly = stateZip.replace(/[0-9]/g,'').trim().split(' ')[0];
+      city = cityPart + (stateOnly ? ', ' + stateOnly : '');
     } else {
       city = place.formatted_address || '';
     }
@@ -1271,8 +1278,13 @@ async function startPlacesAudit(placeId, bizName) {
 
     addLog('Analyzing website performance...', 'active');
     const pageSpeed = await fetchPageSpeed(place.website);
-    if (pageSpeed) addLog('PageSpeed score: ' + pageSpeed.performance + '/100 ✓', 'done');
-    else addLog('Website analysis complete ✓', 'done');
+    if (pageSpeed) {
+      addLog('Website speed: ' + pageSpeed.performance + '/100 mobile ✓', 'done');
+      window._pageSpeedData = pageSpeed;
+    } else {
+      addLog('Website analysis complete ✓', 'done');
+      window._pageSpeedData = null;
+    }
 
     addLog('Generating revenue impact analysis...', 'active');
     const revenueImpact = calcRevenueImpact(place.types?.[0], serpResults, place.rating, place.user_ratings_total);
@@ -1659,6 +1671,59 @@ function buildReport() {
   renderRevenueProjection(m, sOverall);
   render30Audit(m, PD.scores, isP);
 
+  // Render website speed section
+  setTimeout(() => {
+    const ps = window._pageSpeedData;
+    const psEl = document.getElementById('r-pagespeed');
+    const psContent = document.getElementById('r-pagespeed-content');
+    if (ps && psEl && psContent) {
+      psEl.style.display = 'block';
+      const perfColor = ps.performance >= 90 ? 'var(--green)' : ps.performance >= 50 ? 'var(--gold)' : 'var(--red)';
+      const seoColor  = ps.seo >= 90 ? 'var(--green)' : ps.seo >= 50 ? 'var(--gold)' : 'var(--red)';
+      const a11yColor = ps.accessibility >= 90 ? 'var(--green)' : ps.accessibility >= 50 ? 'var(--gold)' : 'var(--red)';
+      psContent.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+            <div style="font-size:36px;font-weight:800;color:${perfColor};font-family:var(--mono);">${ps.performance}</div>
+            <div style="font-size:10px;color:var(--mid);margin-top:4px;">MOBILE SPEED</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+            <div style="font-size:36px;font-weight:800;color:${seoColor};font-family:var(--mono);">${ps.seo}</div>
+            <div style="font-size:10px;color:var(--mid);margin-top:4px;">SEO SCORE</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+            <div style="font-size:36px;font-weight:800;color:${a11yColor};font-family:var(--mono);">${ps.accessibility}</div>
+            <div style="font-size:10px;color:var(--mid);margin-top:4px;">ACCESSIBILITY</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:${ps.opportunities?.length?'16px':'0'};">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:15px;font-weight:700;color:var(--white);font-family:var(--mono);">${ps.lcp}</div>
+            <div style="font-size:10px;color:var(--mid);margin-top:2px;">LOAD TIME (LCP)</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:15px;font-weight:700;color:var(--white);font-family:var(--mono);">${ps.fid}</div>
+            <div style="font-size:10px;color:var(--mid);margin-top:2px;">BLOCKING TIME</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:15px;font-weight:700;color:var(--white);font-family:var(--mono);">${ps.cls}</div>
+            <div style="font-size:10px;color:var(--mid);margin-top:2px;">LAYOUT SHIFT</div>
+          </div>
+        </div>
+        ${ps.opportunities?.length ? `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--gold);margin-bottom:8px;letter-spacing:1px;">TOP IMPROVEMENTS</div>
+          ${ps.opportunities.map(o => '<div style="font-size:12px;color:var(--mid);padding:5px 0;border-bottom:1px solid var(--border);">⚡ ' + o + '</div>').join('')}
+        </div>` : ''}
+        <div style="margin-top:12px;font-size:11px;color:var(--muted);padding:8px 12px;background:var(--card);border-radius:6px;">
+          Mobile performance score via Google PageSpeed Insights. Scores below 50 significantly impact conversion rates and local search rankings.
+        </div>`;
+    } else if (PD.meta?.website && psEl) {
+      psEl.style.display = 'block';
+      if (psContent) psContent.innerHTML = '<div style="font-size:13px;color:var(--mid);padding:12px;">Could not load speed data. <a href="https://pagespeed.web.dev/report?url=' + encodeURIComponent(PD.meta.website) + '" target="_blank" style="color:var(--gold);">Check manually →</a></div>';
+    }
+  }, 800);
+
   // Trigger premium gate / full report
   setTimeout(() => {
     const enriched = window._enrichedAuditData || {};
@@ -1820,7 +1885,7 @@ function render30Audit(m, sc, isP) {
   const eventPosts   = (m.postList||[]).filter(p=>p.topicType==='EVENT').length;
   const ctaPosts     = (m.postList||[]).filter(p=>p.callToAction?.actionType).length;
 
-  const L = (t) => `<span style="color:var(--amber)"> ${t} — available via full GMB API scan.</span>`;
+  const L = (t) => `<span style="color:var(--amber)"> ${t} — Log in to business.google.com to check and optimize this.</span>`;
 
   const dims = [
     // FOUNDATION
@@ -1829,10 +1894,10 @@ function render30Audit(m, sc, isP) {
         isP?'<strong>Verification status unknown</strong> from public data. Go to business.google.com to confirm — non-verified profiles lose 30-40% ranking potential.':
         '<strong>NOT VERIFIED.</strong> Priority #1. Nothing else matters until verification is complete.' },
     { n:'BUSINESS DESCRIPTION',       cat:'CONTENT',            s:m.desc?.length>500?92:m.desc?.length>200?68:m.desc?.length>50?38:45,
-      f:m.desc?.length>500?`Description at <strong>${m.desc.length} characters</strong>. Excellent. Ensure primary keywords appear in the first 250 chars.`:
+      f:m.desc?.length>500?`Description at <strong>${m.desc.length} characters</strong>. Excellent. Ensure primary keywords appear in the first 25`:
         m.desc?.length>200?`Description at <strong>${m.desc.length} characters</strong>. Expand to 500+ with service + city keywords for max search impact.`:
         isP?'<strong>Check your GBP description</strong> — login to business.google.com. Ideal length is 500-750 characters. Put your primary service + city keywords in the first 250 characters for maximum ranking impact.':
-        `<strong>Very short description (${m.desc?.length||0} chars).</strong> Write 500-750 chars embedding service keywords and city name naturally.` },
+        `<strong>Very short description (${m.desc?.length||0} chars).</strong> Write 500-75not loaded via public API embedding service keywords and city name naturally.` },
     { n:'WEBSITE LINK',               cat:'FOUNDATION',         s:m.website?90:10,
       f:m.website?`Linked: <strong>${m.website}</strong>. Add UTM parameters (utm_source=googlebusiness) to track GBP-driven traffic in analytics.`:
         '<strong>No website linked.</strong> Missing critical conversion element. Profiles without websites get 70% fewer direct contacts.' },
@@ -2276,8 +2341,8 @@ function renderReviews(avgRating, total, reviews) {
   document.getElementById('r-review-stats').innerHTML = `
     <div class="review-stat-card"><div class="review-stat-num" style="color:var(--amber)">${(avgRating||0).toFixed(1)}★</div><div class="review-stat-label">AVG RATING</div></div>
     <div class="review-stat-card"><div class="review-stat-num">${total}</div><div class="review-stat-label">TOTAL REVIEWS</div></div>
-    <div class="review-stat-card"><div class="review-stat-num" style="color:var(--green)">${rr}%</div><div class="review-stat-label">RESPONSE RATE</div></div>
-    <div class="review-stat-card"><div class="review-stat-num">${responded}</div><div class="review-stat-label">RESPONDED</div></div>
+    <div class="review-stat-card"><div class="review-stat-num" style="color:var(--green)">${rr}%</div><div class="review-stat-label">5★ SHARE</div></div>
+    <div class="review-stat-card"><div class="review-stat-num">${responded}</div><div class="review-stat-label">RECENT (30D)</div></div>
     <div class="review-stat-card"><div class="review-stat-num" style="color:var(--mid)">${avgLen}</div><div class="review-stat-label">AVG REVIEW LEN</div></div>`;
 
   if (reviews.length) {
@@ -2488,7 +2553,7 @@ function renderActions(m, sc) {
   if (!isP&&sc.response<60)   actions.push({ t:'Respond to All Unanswered Reviews',  d:`${m.allReviews.filter(r=>!r.reviewReply?.comment).length} reviews have no owner response. Respond within 24hrs — positive AND negative.`,       l:'crit', g:'+12 pts', t2:'Wk 1' });
   if (!isP&&sc.post<40)       actions.push({ t:'Start Posting 3× Per Week',          d:'Zero or minimal Google Posts detected. Post UPDATE, OFFER, and EVENT types consistently — this is a live ranking signal Google checks weekly.',   l:'crit', g:'+10 pts', t2:'Wk 2' });
   if (m.totalReviews<50)      actions.push({ t:'Launch Review Generation System',    d:'Text every customer post-job with a direct Google review link. Target 5 new reviews/week. This is the fastest single lever for map pack ranking.', l:'high', g:'+11 pts', t2:'Wk 2' });
-  if (!m.desc||m.desc.length<300)actions.push({ t:'Write Keyword-Rich Description', d:`Current: ${m.desc?.length||0} chars. Write 500-750 chars embedding primary trade + city + service keywords naturally in the first 250 characters.`,l:'high', g:'+8 pts',  t2:'Wk 2' });
+  if (!m.desc||m.desc.length<300)actions.push({ t:'Write Keyword-Rich Description', d:`Current: ${m.desc?.length||0} chars. Write 500-75not loaded via public API embedding primary trade + city + service keywords naturally in the first 250 characters.`,l:'high', g:'+8 pts',  t2:'Wk 2' });
   if (!isP&&sc.qa<50)         actions.push({ t:'Seed 15+ Q&A Pairs Yourself',        d:'Q&A section is free keyword real estate. Create questions as a customer, answer as the owner with keyword-rich, city-specific answers.',           l:'high', g:'+7 pts',  t2:'Wk 3' });
   if (m.avgRating<4.5)        actions.push({ t:'Launch Reputation Repair Campaign',  d:`${(m.avgRating||0).toFixed(1)}★ is below the 4.5 threshold. Identify root causes of lower-rated experiences and systematically address them.`,  l:'high', g:'+9 pts',  t2:'Wk 3' });
   actions.push({ t:'Add Secondary Business Categories',  d:'Add 3-5 secondary categories for adjacent services. Each additional category makes you eligible for more keyword searches without diluting your primary positioning.', l:'med', g:'+5 pts', t2:'Wk 3' });
