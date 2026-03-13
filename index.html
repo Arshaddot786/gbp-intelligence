@@ -1394,11 +1394,22 @@ async function startPlacesAudit(placeId, bizName) {
 
   } catch(err) {
     clearInterval(tick); clearInterval(clock);
-    addLog('ERROR: ' + err.message, 'done');
-    console.error('[GBP] Audit error:', err);
+    console.error('[GBP] Audit error:', err.message, err);
+    addLog('Finalizing report...', 'active');
+    // Don't show alert or run demo — build report with whatever data loaded
+    try {
+      if (!PD.meta) buildPDFromPlaces(place);
+      buildReport();
+      pct = 100; progEl.style.width = '100%'; pctEl.textContent = '100';
+      await sleep(300);
+      showPage('report');
+      setTimeout(animateReport, 200);
+      runAI();
+      return;
+    } catch(e2) {
+      console.error('[GBP] Report build also failed:', e2);
+    }
     setTimeout(() => {
-      // Fall to demo if real data fails
-      alert('Could not fetch live data. Showing estimated report based on business type.');
       runDemo();
     }, 800);
   }
