@@ -1780,10 +1780,10 @@ function buildReport() {
   render30Audit(m, PD.scores, isP);
 
   // Render sections 05-09
-  renderReviews(m.allReviews || [], m.avgRating, m.totalReviews);
-  renderPhotos(m.photoItems || [], m.photoCount);
-  renderCompetitors(PD, window._enrichedAuditData?.competitorData || []);
-  renderMapPack(window._enrichedAuditData?.serpResults || [], m);
+  renderReviews(m.avgRating, m.totalReviews, Array.isArray(m.allReviews) ? m.allReviews : []);
+  renderPhotos(m.photoItems || []);
+  renderCompetitors(PD.meta?.name, PD.meta?.address, PD.scores?.overall||60, PD.meta?.avgRating||0, PD.meta?.totalReviews||0, PD.meta?.photoCount||0, PD.loc?._placesData);
+  renderMapPack(m, PD.scores?.overall || 60);
   renderActions(m, PD.scores);
   renderPosts(m.postList || []);
 
@@ -2463,6 +2463,7 @@ function renderKeywordTable(m) {
 
 /* ── REVIEW INTELLIGENCE ── */
 function renderReviews(avgRating, total, reviews) {
+  reviews = Array.isArray(reviews) ? reviews : [];
   const fiveS = reviews.filter(r=>r.rating===5).length;
   const fourS  = reviews.filter(r=>r.rating===4).length;
   const threeS = reviews.filter(r=>r.rating===3).length;
