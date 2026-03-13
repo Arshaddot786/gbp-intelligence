@@ -1097,6 +1097,9 @@ function showPage(id) {
 function onMapsLoaded() {
   _mapsReady = true;
   console.log('[GBP] Google Maps loaded ✓');
+  // Clear any loading indicator
+  const btn = document.getElementById('audit-btn');
+  if (btn) btn.textContent = 'Run Free Audit →';
   const input = document.getElementById('biz-search');
   if (input && window.google?.maps?.places) {
     _autocomplete = new google.maps.places.AutocompleteService();
@@ -1132,9 +1135,19 @@ function onSearchKey(e) {
   }
 }
 
-async async function fetchSuggestions(query) {
-  const results = await _doPlacesSearch(query);
-  showSuggestions(results);
+async function fetchSuggestions(query) {
+  try {
+    const results = await _doPlacesSearch(query);
+    showSuggestions(results);
+  } catch(e) {
+    console.error('[Search Error]', e);
+    // Show fallback message in suggestions
+    const el = document.getElementById('biz-suggestions');
+    if (el) {
+      el.innerHTML = '<div class="sugg-item" style="color:var(--red)">Search error — check console. Try refreshing.</div>';
+      el.classList.add('visible');
+    }
+  }
 }
 
 async function _doPlacesSearch(query) {
@@ -2426,7 +2439,7 @@ function renderReviews(avgRating, total, reviews) {
   const rr = reviews.length ? Math.round(responded/reviews.length*100) : 0;
   const fiveStar = reviews.filter(r=>r.rating===5).length;
   const avgLen = reviews.length ? Math.round(reviews.reduce((a,r)=>(a+(r.text?.length||0)),0)/reviews.length) : 0;
-  const avgLen = reviews.length ? Math.round(reviews.reduce((a,r)=>a+(r.text?.length||0),0)/reviews.length) : 0;
+  avgLen = reviews.length ? Math.round(reviews.reduce((a,r)=>a+(r.text?.length||0),0)/reviews.length) : 0;
 
   document.getElementById('r-review-stats').innerHTML = `
     <div class="review-stat-card"><div class="review-stat-num" style="color:var(--amber)">${(avgRating||0).toFixed(1)}★</div><div class="review-stat-label">AVG RATING</div></div>
@@ -3448,5 +3461,14 @@ window.onMapsLoaded = onMapsLoaded;
     document.head.appendChild(s);
   }
   tryLoad();
+  // Show warning if Maps doesn't load in 8 seconds
+  setTimeout(() => {
+    if (!_mapsReady) {
+      const el = document.getElementById('biz-suggestions');
+      const search = document.getElementById('biz-search');
+      if (search) search.placeholder = 'Loading... if stuck, try refreshing the page';
+      console.warn('[GBP] Maps API did not load — check API key restrictions');
+    }
+  }, 8000);
 })();
 </script>
