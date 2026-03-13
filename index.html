@@ -1037,6 +1037,47 @@ body {
 
 'use strict';
 
+/* ── REPORT USAGE & PRICING SYSTEM ── */
+function getUsage() {
+  try {
+    const u = JSON.parse(localStorage.getItem('gbp_usage') || '{}');
+    const now = new Date();
+    const monthKey = now.getFullYear() + '-' + (now.getMonth()+1);
+    if (u.monthKey !== monthKey) return { used:0, monthKey, tier:'free' };
+    return u;
+  } catch(e) { return { used:0, monthKey:'', tier:'free' }; }
+}
+function saveUsage(u) {
+  try { localStorage.setItem('gbp_usage', JSON.stringify(u)); } catch(e) {}
+}
+function getAllowedReports() {
+  const u = getUsage();
+  if (u.tier === 'free') return 1;
+  const tier = (CONFIG.PRICING?.tiers||[]).find(t => t.id === u.tier);
+  return tier ? tier.reports : 1;
+}
+function canRunReport() {
+  const u = getUsage();
+  return u.used < getAllowedReports();
+}
+function incrementUsage() {
+  const u = getUsage();
+  u.used = (u.used || 0) + 1;
+  saveUsage(u);
+}
+function showPricingModal() {
+  const el = document.getElementById('pricing-modal');
+  if (el) el.style.display = 'flex';
+}
+function closePricingModal() {
+  const el = document.getElementById('pricing-modal');
+  if (el) el.style.display = 'none';
+}
+function selectPlan(tierId) {
+  window.open(CONFIG.CALENDLY + '?plan=' + tierId, '_blank');
+  closePricingModal();
+}
+
 /* ── GLOBAL STATE ── */
 let PD = {};          // Profile Data
 let IS_DEMO = false;
