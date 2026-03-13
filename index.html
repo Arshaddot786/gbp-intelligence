@@ -1401,13 +1401,20 @@ async function startPlacesAudit(placeId, bizName) {
 
   } catch(err) {
     clearInterval(tick); clearInterval(clock);
-    console.error('[GBP] Audit error:', err.message, err);
-    addLog('Finalizing report...', 'active');
-    // Don't show alert or run demo — build report with whatever data loaded
+    console.error('[GBP] Audit error at step:', err.message, err.stack);
+    addLog('Building report from available data...', 'active');
     try {
-      if (!PD.meta && place) buildPDFromPlaces(place);
-      if (!PD.meta) { runDemo(); return; }
+      if (!PD.meta && place) {
+        console.log('[GBP] Building PD from place:', place?.name);
+        buildPDFromPlaces(place);
+      }
+      if (!PD.meta) {
+        console.error('[GBP] No PD.meta available — place was:', place);
+        addLog('Error: Could not load business data', 'done');
+        return;
+      }
       buildReport();
+      incrementUsage();
       pct = 100; progEl.style.width = '100%'; pctEl.textContent = '100';
       await sleep(300);
       showPage('report');
@@ -1415,11 +1422,9 @@ async function startPlacesAudit(placeId, bizName) {
       runAI();
       return;
     } catch(e2) {
-      console.error('[GBP] Report build also failed:', e2);
+      console.error('[GBP] Report build failed:', e2.message, e2.stack);
+      addLog('Report error: ' + e2.message, 'done');
     }
-    setTimeout(() => {
-      runDemo();
-    }, 800);
   }
 }
 
@@ -1773,6 +1778,14 @@ function buildReport() {
   renderBands(sOverall, sReview, sPhoto, sPost, sResponse, sProfile, sQA, isP);
   renderRevenueProjection(m, sOverall);
   render30Audit(m, PD.scores, isP);
+
+  // Render sections 05-09
+  renderReviews(m.allReviews || [], m.avgRating, m.totalReviews);
+  renderPhotos(m.photoItems || [], m.photoCount);
+  renderCompetitors(PD, window._enrichedAuditData?.competitorData || []);
+  renderMapPack(window._enrichedAuditData?.serpResults || [], m);
+  renderActions(m, PD.scores);
+  renderPosts(m.postList || []);
 
   // Render website speed section
   setTimeout(() => {
