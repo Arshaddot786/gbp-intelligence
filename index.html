@@ -1040,16 +1040,21 @@ body {
 /* ── REPORT USAGE & PRICING SYSTEM ── */
 function getUsage() {
   try {
+    const CURRENT_VERSION = 'v6';
     const u = JSON.parse(localStorage.getItem('gbp_usage') || '{}');
     const now = new Date();
     const monthKey = now.getFullYear() + '-' + (now.getMonth()+1);
-    if (u.monthKey !== monthKey) return { used:0, monthKey, tier:'free' };
+    // Reset if new month OR new version
+    if (u.monthKey !== monthKey || u.version !== CURRENT_VERSION) {
+      return { used:0, monthKey, tier:'free', version: CURRENT_VERSION };
+    }
     return u;
-  } catch(e) { return { used:0, monthKey:'', tier:'free' }; }
+  } catch(e) { return { used:0, monthKey:'', tier:'free', version:'v6' }; }
 }
 function saveUsage(u) {
-  try { localStorage.setItem('gbp_usage', JSON.stringify(u)); } catch(e) {}
+  try { u.version = 'v6'; localStorage.setItem('gbp_usage', JSON.stringify(u)); } catch(e) {}
 }
+// saveUsage defined above
 function getAllowedReports() {
   const u = getUsage();
   if (u.tier === 'free') return 1;
@@ -1388,6 +1393,7 @@ async function startPlacesAudit(placeId, bizName) {
     pct = 100; progEl.style.width = '100%'; pctEl.textContent = '100';
     clearInterval(tick); clearInterval(clock);
     await sleep(400);
+    incrementUsage();
     showPage('report');
     setTimeout(animateReport, 200);
     runAI();
@@ -3268,7 +3274,7 @@ function runFreeAudit() {
 
   // Capture lead
   captureEmail(email, phone, _selectedPlace.name, fname, lname);
-  incrementUsage();
+  // Note: incrementUsage() called after successful report build
   
   // Run audit
   startPlacesAudit(_selectedPlace.id, _selectedPlace.name);
@@ -3472,14 +3478,6 @@ window.onMapsLoaded = onMapsLoaded;
     document.head.appendChild(s);
   }
   tryLoad();
-  // Show warning if Maps doesn't load in 8 seconds
-  setTimeout(() => {
-    if (!_mapsReady) {
-      const el = document.getElementById('biz-suggestions');
-      const search = document.getElementById('biz-search');
-      if (search) search.placeholder = 'Loading... if stuck, try refreshing the page';
-      console.warn('[GBP] Maps API did not load — check API key restrictions');
-    }
-  }, 8000);
+
 })();
 </script>
