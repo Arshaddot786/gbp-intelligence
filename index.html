@@ -1132,7 +1132,7 @@ function onSearchKey(e) {
   }
 }
 
-async function fetchSuggestions(query) {
+async async function fetchSuggestions(query) {
   const results = await _doPlacesSearch(query);
   showSuggestions(results);
 }
