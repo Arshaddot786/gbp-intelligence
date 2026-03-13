@@ -1282,12 +1282,13 @@ async function startPlacesAudit(placeId, bizName) {
     pctEl.textContent = Math.floor(pct) + '%';
   }, 100);
 
+  let place = null;
   try {
     addLog('Connecting to Google Places API...', 'active');
     await sleep(300);
 
     addLog('Fetching business profile: ' + bizName + '...', 'active');
-    const place = await getPlaceDetails(placeId);
+    place = await getPlaceDetails(placeId);
     addLog('Business found: ' + place.name + ' ✓', 'done');
 
     addLog('Loading reviews (' + (place.user_ratings_total||0) + ' total)...', 'active');
@@ -1404,7 +1405,8 @@ async function startPlacesAudit(placeId, bizName) {
     addLog('Finalizing report...', 'active');
     // Don't show alert or run demo — build report with whatever data loaded
     try {
-      if (!PD.meta) buildPDFromPlaces(place);
+      if (!PD.meta && place) buildPDFromPlaces(place);
+      if (!PD.meta) { runDemo(); return; }
       buildReport();
       pct = 100; progEl.style.width = '100%'; pctEl.textContent = '100';
       await sleep(300);
