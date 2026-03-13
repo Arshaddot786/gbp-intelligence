@@ -1289,8 +1289,8 @@ async function startPlacesAudit(placeId, bizName) {
 
     addLog('Fetching business profile: ' + bizName + '...', 'active');
     place = await getPlaceDetails(placeId);
-    // Make mutable immediately
-    try { place = JSON.parse(JSON.stringify(place)); } catch(e) { place = Object.assign({}, place); }
+    // Ensure fully mutable plain object
+    place = JSON.parse(JSON.stringify(place));
     addLog('Business found: ' + place.name + ' ✓', 'done');
 
     addLog('Loading reviews (' + (place.user_ratings_total||0) + ' total)...', 'active');
@@ -1480,7 +1480,7 @@ function normalizeHTTPPlace(p) {
     opening_hours: p.regularOpeningHours ? {
       weekday_text: p.regularOpeningHours.weekdayDescriptions || [],
       periods: p.regularOpeningHours.periods || [],
-      isOpen: () => null,
+      open_now: false,
     } : null,
     types: p.types || [],
     photos: (p.photos || []).map(ph => ({
@@ -1510,12 +1510,17 @@ function normalizePlaceNew(p) {
     website: p.website || null,
     rating: p.rating || 0,
     user_ratings_total: p.user_ratings_total || 0,
-    opening_hours: p.opening_hours || null,
+    opening_hours: p.opening_hours ? {
+      weekday_text: p.opening_hours.weekday_text || [],
+      periods: p.opening_hours.periods || [],
+      open_now: p.opening_hours.open_now || false,
+    } : null,
     types: p.types || [],
-    photos: (p.photos || []).map(ph => ({
-      photo_reference: ph.photo_reference,
-      getUrl: (opts) => ph.getUrl(opts||{maxWidth:400}),
-    })),
+    photos: (p.photos || []).map(ph => {
+      let url = '';
+      try { url = ph.getUrl ? ph.getUrl({maxWidth:800}) : ''; } catch(e) {}
+      return { photo_reference: ph.photo_reference || '', url };
+    }),
     reviews: (p.reviews || []).map(r => ({
       author_name: r.author_name || 'Anonymous',
       rating: r.rating,
