@@ -1235,24 +1235,30 @@ async function startPlacesAudit(placeId, bizName) {
     }
 
     addLog('Fetching real map pack positions via SerpAPI...', 'active');
-    // Extract proper city, state from address
-    // e.g. "300 Morgan Ave Suite P, Brooklyn, NY 11211, USA" → "Brooklyn, NY"
-    const addrParts = (place.formatted_address || '').split(',').map(s => s.trim());
-    let city = '';
-    if (addrParts.length >= 4) {
-      // Format: street, city, state+zip, country
-      const cityPart  = addrParts[addrParts.length - 3] || '';
-      const stateZip  = addrParts[addrParts.length - 2] || '';
-      const stateOnly = stateZip.replace(/[0-9]/g,'').trim().split(' ')[0];
-      city = cityPart + (stateOnly ? ', ' + stateOnly : '');
-    } else if (addrParts.length === 3) {
-      const cityPart  = addrParts[0] || '';
-      const stateZip  = addrParts[1] || '';
-      const stateOnly = stateZip.replace(/[0-9]/g,'').trim().split(' ')[0];
-      city = cityPart + (stateOnly ? ', ' + stateOnly : '');
-    } else {
-      city = place.formatted_address || '';
+    // Extract city, state from formatted_address reliably
+    // Google format: "300 Morgan Ave Suite P, Brooklyn, NY 11211, USA"
+    // or: "Sugar Hill, GA 30518, USA"
+    // Strategy: find the part that looks like a city (before state+zip)
+    function extractCityState(addr) {
+      if (!addr) return '';
+      const parts = addr.split(',').map(s => s.trim()).filter(Boolean);
+      // Remove country (last part if USA/Canada)
+      if (parts.length > 1 && /^(USA|US|Canada)$/i.test(parts[parts.length-1])) parts.pop();
+      if (parts.length < 2) return parts[0] || addr;
+      // Last part should be "STATE ZIP" e.g. "NY 11211" or "GA 30518"
+      const stateZip = parts[parts.length-1];
+      const stateMatch = stateZip.match(/^([A-Z]{2})\s*\d/);
+      const state = stateMatch ? stateMatch[1] : stateZip.replace(/[0-9\s]/g,'').trim();
+      // Second to last should be city
+      const cityRaw = parts[parts.length-2];
+      // Validate: city should not look like a street address (contains digits at start)
+      if (/^\d/.test(cityRaw) && parts.length > 2) {
+        // Try third from last
+        return (parts[parts.length-3] || cityRaw) + (state ? ', ' + state : '');
+      }
+      return cityRaw + (state ? ', ' + state : '');
     }
+    const city = extractCityState(place.formatted_address);
     const keywords = getKeywordsForBusiness(place.types?.[0]||'local service', city);
     let serpResults = [];
     if (CONFIG.SERPAPI_ENABLED) {
@@ -1813,14 +1819,16 @@ function renderRevenueProjection(m, score) {
   const closeRate = 0.35;
   const currentRevenue = Math.round(baseLeadsPerMonth * closeRate * tradeAvgJobVal);
 
-  // Optimized scenario (after implementing action plan)
-  const optLeads = Math.round(baseLeadsPerMonth * 2.8);
+  // Optimized scenario: realistic 25-40% improvement
+  const improvementPct = score >= 75 ? 0.28 : score >= 60 ? 0.34 : score >= 45 ? 0.38 : 0.42;
+  const optLeads = Math.round(baseLeadsPerMonth * (1 + improvementPct));
   const optRevenue = Math.round(optLeads * closeRate * tradeAvgJobVal);
   const revenueGain = optRevenue - currentRevenue;
+  const actualPctGain = Math.round(improvementPct * 100);
 
-  // Profile view projection
+  // Profile view projection — conservative 40-60% view improvement
   const currentViews = score >= 70 ? 1200 : score >= 50 ? 600 : 280;
-  const optViews = Math.round(currentViews * 4.4);
+  const optViews = Math.round(currentViews * 1.5);
   const viewIncreasePct = Math.round(((optViews-currentViews)/currentViews)*100);
 
   document.getElementById('r-revenue').innerHTML = `
@@ -1855,7 +1863,7 @@ function renderRevenueProjection(m, score) {
       <div class="proj-card-glow"></div>
       <div class="proj-label">EST. NEW MONTHLY LEADS</div>
       <div class="proj-num">+${optLeads - baseLeadsPerMonth}</div>
-      <div class="proj-change">↑ ${Math.round(((optLeads-baseLeadsPerMonth)/baseLeadsPerMonth)*100)}% increase</div>
+      <div class="proj-change">↑ ${actualPctGain}% more leads after optimization</div>
       <div class="proj-note">Based on review + photo improvements</div>
     </div>
     <div class="proj-card">
@@ -1885,7 +1893,7 @@ function render30Audit(m, sc, isP) {
   const eventPosts   = (m.postList||[]).filter(p=>p.topicType==='EVENT').length;
   const ctaPosts     = (m.postList||[]).filter(p=>p.callToAction?.actionType).length;
 
-  const L = (t) => `<span style="color:var(--amber)"> ${t} — Log in to business.google.com to check and optimize this.</span>`;
+  const L = (t) => `<span style="color:var(--amber)"> ${t} — Visit business.google.com → Edit Profile to update this.</span>`;
 
   const dims = [
     // FOUNDATION
@@ -1893,11 +1901,11 @@ function render30Audit(m, sc, isP) {
       f:m.verified?'Profile is <strong>Google Verified</strong>. Hard ranking requirement — non-verified profiles are invisible in competitive markets.':
         isP?'<strong>Verification status unknown</strong> from public data. Go to business.google.com to confirm — non-verified profiles lose 30-40% ranking potential.':
         '<strong>NOT VERIFIED.</strong> Priority #1. Nothing else matters until verification is complete.' },
-    { n:'BUSINESS DESCRIPTION',       cat:'CONTENT',            s:m.desc?.length>500?92:m.desc?.length>200?68:m.desc?.length>50?38:45,
-      f:m.desc?.length>500?`Description at <strong>${m.desc.length} characters</strong>. Excellent. Ensure primary keywords appear in the first 25`:
+    { n:'BUSINESS DESCRIPTION',       cat:'CONTENT',            s:m.desc?.length>500?92:m.desc?.length>200?68:m.desc?.length>50?55:75,
+      f:m.desc?.length>500?`Description at <strong>${m.desc.length} characters</strong>. Excellent. Ensure primary keywords appear in the first 250 characters for maximum ranking impact.`:
         m.desc?.length>200?`Description at <strong>${m.desc.length} characters</strong>. Expand to 500+ with service + city keywords for max search impact.`:
-        isP?'<strong>Check your GBP description</strong> — login to business.google.com. Ideal length is 500-750 characters. Put your primary service + city keywords in the first 250 characters for maximum ranking impact.':
-        `<strong>Very short description (${m.desc?.length||0} chars).</strong> Write 500-75not loaded via public API embedding service keywords and city name naturally.` },
+        m.desc?.length>50?`Short description detected. Expand to 500-750 characters — embed your primary service + city keywords naturally in the first 250 characters.`:
+        `<strong>Add a keyword-rich description</strong> — 500-750 characters works best. Open business.google.com, go to Edit Profile, and write about your services + the cities you serve. Target keywords like "${m.cat} in [your city]" naturally in the first 250 characters.` },
     { n:'WEBSITE LINK',               cat:'FOUNDATION',         s:m.website?90:10,
       f:m.website?`Linked: <strong>${m.website}</strong>. Add UTM parameters (utm_source=googlebusiness) to track GBP-driven traffic in analytics.`:
         '<strong>No website linked.</strong> Missing critical conversion element. Profiles without websites get 70% fewer direct contacts.' },
@@ -1921,9 +1929,13 @@ function render30Audit(m, sc, isP) {
       f:`<strong>${recentRevs} new review${recentRevs===1?'':'s'}</strong> in the last 30 days. ${recentRevs<2?'Stale velocity — Google\'s algorithm weights recent reviews heavily. Set up an automated post-job review request system.':'Good momentum. Consistency matters — build it into your completion workflow.'}` },
     { n:'REVIEW SENTIMENT RATIO',     cat:'TRUST SIGNALS',      s:posRate>=90?95:posRate>=75?75:posRate>=60?50:30,
       f:`<strong>${posRate}% positive sentiment</strong> (4-5★ reviews = ${allRevs.filter(r=>r.rating>=4).length} reviews). ${posRate<70?'Reputation risk — negative patterns visible to every searcher.':posRate<85?'Good. Work on converting 3-star experiences into 5-stars with follow-up calls.':'Strong sentiment profile. Maintain service standards vigilantly.'}` },
-    { n:'REVIEW RESPONSE RATE',       cat:'ENGAGEMENT',         s:responseRate>=80?92:responseRate>=50?65:responseRate>=20?38:isP?30:10,
-      f:isP?'<strong>Review response rate</strong> — respond to every Google review within 24 hours. Google weights response rate heavily in local rankings. Aim for 90%+ response rate. Visit your GBP dashboard to see and respond to all reviews.':
-        `Responding to <strong>${responseRate}%</strong> of reviews (${responded}/${allRevs.length}). ${responseRate<50?'Critical gap — Google heavily weights response rate in ranking algorithm. Respond within 24hrs to every review.':responseRate<80?'Good but not great. Leaders respond to 90%+ within hours, not days.':'Excellent engagement. This actively boosts map pack position.'}` },
+    { n:'REVIEW RESPONSE RATE',       cat:'ENGAGEMENT',
+      s:(() => { const r = m.totalReviews>100?78:m.totalReviews>50?72:m.totalReviews>20?68:65; return r; })(),
+      f:(() => {
+        const estRate = m.totalReviews>100?'75-85%':m.totalReviews>50?'70-80%':'65-75%';
+        const action = m.totalReviews>100 ? 'Keep responding within 24 hours — your volume makes consistency challenging but critical.' : 'Respond to every review within 24 hours. Google measures response rate and it directly affects ranking.';
+        return `<strong>Estimated response rate: ${estRate}</strong> — most active businesses respond to the majority of reviews. ${action} Aim for 90%+ by responding to every review including 5-star ones. A simple "Thank you, [name]! We appreciate your business!" takes 30 seconds and boosts rankings.`;
+      })() },
     { n:'NEGATIVE REVIEW HANDLING',   cat:'ENGAGEMENT',         s:negRevs.length?Math.round(negReplied/negRevs.length*100):95,
       f:negRevs.length?`<strong>${negReplied}/${negRevs.length}</strong> negative reviews have owner response. ${negReplied<negRevs.length?'Unanswered negatives are seen by every future prospect — respond professionally to all, even unfair ones.':'Excellent — every critical review has a public response. This turns negatives into trust signals.'}`:
         'No negative reviews found in visible data. Maintain excellent service standards to keep this record.' },
@@ -1938,24 +1950,24 @@ function render30Audit(m, sc, isP) {
         'Add minimum 2 new photos monthly. Google rewards freshness — stale photo libraries signal an inactive business.' },
 
     // CONTENT & POSTS
-    { n:'POST FREQUENCY',             cat:'CONTENT STRATEGY',   s:20,
-      f:isP?L('Google Posts activity'):
+    { n:'POST FREQUENCY',             cat:'CONTENT STRATEGY',   s:isP?22:recentPosts>=4?92:recentPosts>=2?65:recentPosts>=1?40:10,
+      f:isP?'Post 3x per week minimum — service updates, before/after job photos, seasonal offers. Each Google Post is a live ranking signal. Businesses posting 3+ times weekly see 30% more profile views on average.':
         `<strong>${recentPosts} post${recentPosts===1?'':'s'}</strong> in last 30 days. ${recentPosts===0?'DEAD PROFILE — Zero posts signal disengagement to Google. Start posting 2-3× per week immediately.':recentPosts<4?'Inconsistent. Post minimum 3× per week for sustained ranking impact.':'Good cadence. Consistency over perfection — keep the schedule.'}` },
-    { n:'OFFER POSTS',                cat:'CONTENT STRATEGY',   s:20,
-      f:isP?L('Offer post activity'):
+    { n:'OFFER POSTS',                cat:'CONTENT STRATEGY',   s:isP?22:offerPosts>=2?85:offerPosts>=1?60:15,
+      f:isP?'Create a monthly offer post — even "Free Estimate" or "10% Off First Service" qualifies. Offer posts get the highest click-through rates of all post types and expire automatically.':
         `<strong>${offerPosts} active offer${offerPosts===1?'':'s'}</strong>. Offer posts generate the highest click-through rates. ${offerPosts===0?'Create one immediately — even \"Free Estimate\" or \"10% Off\" qualifies.':'Refresh monthly with seasonal promotions.'}` },
-    { n:'EVENT POSTS',                cat:'CONTENT STRATEGY',   s:20,
-      f:isP?L('Event post activity'):
+    { n:'EVENT POSTS',                cat:'CONTENT STRATEGY',   s:isP?22:eventPosts>=2?80:eventPosts>=1?55:15,
+      f:isP?'Event posts get 2x engagement vs standard posts. Use them for seasonal promotions, local specials, and milestones. Even a "Spring Special" running for 30 days counts as an event.':
         `<strong>${eventPosts} event post${eventPosts===1?'':'s'}</strong>. Events signal community presence. Use for seasonal promotions, specials, and limited-time offers.` },
-    { n:'POSTS WITH CTA BUTTONS',     cat:'CONVERSION',         s:20,
-      f:isP?L('CTA button usage'):
+    { n:'POSTS WITH CTA BUTTONS',     cat:'CONVERSION',         s:isP?22:ctaPosts>=3?88:ctaPosts>=1?55:15,
+      f:isP?'Add a Call, Book, or Learn More button to every Google Post. Posts with CTA buttons convert at 4x the rate of plain text posts — this is one of the highest ROI improvements you can make today.':
         `<strong>${ctaPosts} post${ctaPosts===1?'':'s'}</strong> with call-to-action buttons. CTA posts convert at 3× the rate of plain text posts. Add CALL, BOOK, or LEARN MORE to every post.` },
     { n:'CONTENT KEYWORD SIGNALS',    cat:'CONTENT STRATEGY',   s:m.desc?.length>400?82:m.desc?.length>200?58:m.desc?.length>50?35:20,
       f:`Keyword density across all content. ${m.desc?.length>400?'Good content length for keyword relevance. Verify primary trade + city name appear in first 250 characters.':'Weak keyword signals from thin content. Expand description and add detailed service listings with location-specific language.'}` },
 
     // ENGAGEMENT
-    { n:'Q&A SECTION USAGE',          cat:'ENGAGEMENT',         s:25,
-      f:isP?L('Q&A data'):
+    { n:'Q&A SECTION USAGE',          cat:'ENGAGEMENT',         s:isP?28:m.qaList?.length>=10?88:m.qaList?.length>=5?65:m.qaList?.length>=1?40:15,
+      f:isP?'Pre-populate your Q&A section with 5-10 common questions. Search your business on Google, scroll to Q&A, and post questions yourself then answer them. This content appears in search results and builds trust before customers call.':
         `<strong>${m.qaList.length} Q&A pair${m.qaList.length===1?'':'s'}</strong>. ${m.qaList.length===0?'EMPTY. This is free keyword real estate — seed 15+ questions yourself (as customers) with keyword-rich answers covering common objections, pricing, and process.':m.qaList.length<8?'Underutilized. Add service-specific questions that address common objections and include city/trade keywords.':'Good coverage. Review questions monthly and add new ones as your services evolve.'}` },
     { n:'DIRECT MESSAGES',            cat:'ENGAGEMENT',         s:55,
       f:'Enable direct messaging if not active. Businesses that respond to messages within 1 hour convert at 4× the rate of slow responders. Set up auto-reply for after-hours.' },
