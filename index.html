@@ -1289,6 +1289,8 @@ async function startPlacesAudit(placeId, bizName) {
 
     addLog('Fetching business profile: ' + bizName + '...', 'active');
     place = await getPlaceDetails(placeId);
+    // Make mutable immediately
+    try { place = JSON.parse(JSON.stringify(place)); } catch(e) { place = Object.assign({}, place); }
     addLog('Business found: ' + place.name + ' ✓', 'done');
 
     addLog('Loading reviews (' + (place.user_ratings_total||0) + ' total)...', 'active');
@@ -1304,7 +1306,8 @@ async function startPlacesAudit(placeId, bizName) {
     addLog('Fetching full GBP data via Outscraper...', 'active');
     const outscraperData = await fetchOutscraperGBP(bizName, place.formatted_address);
     if (outscraperData) {
-      // Enrich place data with Outscraper results
+      // Enrich place data — clone first to avoid readonly errors
+      try { place = JSON.parse(JSON.stringify(place)); } catch(e) { place = {...place}; }
       if (outscraperData.description) place._description = outscraperData.description;
       if (outscraperData.responseRate !== null) place._responseRate = outscraperData.responseRate;
       if (outscraperData.posts) place._posts = outscraperData.posts;
@@ -1527,10 +1530,34 @@ function normalizePlaceNew(p) {
 }
 
 function buildPDFromPlaces(placeRaw) {
-  // Clone to mutable object — Google Places API responses can be read-only
-  const place = Object.assign({}, placeRaw);
+  // Deep clone via JSON to get fully mutable object
+  let place;
+  try {
+    place = JSON.parse(JSON.stringify(placeRaw));
+  } catch(e) {
+    // Fallback: manually extract needed fields into new object
+    place = {
+      name: placeRaw.name || placeRaw.displayName?.text || '',
+      formatted_address: placeRaw.formatted_address || placeRaw.formattedAddress || '',
+      rating: placeRaw.rating || 0,
+      user_ratings_total: placeRaw.user_ratings_total || placeRaw.userRatingCount || 0,
+      reviews: Array.isArray(placeRaw.reviews) ? placeRaw.reviews.map(r=>({...r})) : [],
+      photos: Array.isArray(placeRaw.photos) ? [...placeRaw.photos] : [],
+      website: placeRaw.website || placeRaw.websiteUri || '',
+      formatted_phone_number: placeRaw.formatted_phone_number || placeRaw.nationalPhoneNumber || '',
+      opening_hours: placeRaw.opening_hours || placeRaw.regularOpeningHours || null,
+      types: placeRaw.types || [],
+      business_status: placeRaw.business_status || 'OPERATIONAL',
+      place_id: placeRaw.place_id || placeRaw.id || '',
+      _description: placeRaw._description,
+      _responseRate: placeRaw._responseRate,
+      _verified: placeRaw._verified,
+      _totalReviews: placeRaw._totalReviews,
+      _posts: placeRaw._posts,
+    };
+  }
 
-  // Enrich with Outscraper data if available
+  // Enrich with Outscraper data — safe to mutate now
   if (place._description) place.editorial_summary = { overview: place._description };
   if (place._responseRate !== undefined) place._outscraper_response_rate = place._responseRate;
   if (place._verified !== undefined) place.business_status = place._verified ? 'OPERATIONAL' : place.business_status;
