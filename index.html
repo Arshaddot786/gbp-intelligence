@@ -1406,7 +1406,7 @@ async function startPlacesAudit(placeId, bizName) {
     try {
       if (!PD.meta && place) {
         console.log('[GBP] Building PD from place:', place?.name);
-        buildPDFromPlaces(place);
+        try { buildPDFromPlaces(place); } catch(eBuild) { console.error('buildPD failed:', eBuild.message); }
       }
       if (!PD.meta) {
         console.error('[GBP] No PD.meta available — place was:', place);
@@ -1526,7 +1526,10 @@ function normalizePlaceNew(p) {
   };
 }
 
-function buildPDFromPlaces(place) {
+function buildPDFromPlaces(placeRaw) {
+  // Clone to mutable object — Google Places API responses can be read-only
+  const place = Object.assign({}, placeRaw);
+
   // Enrich with Outscraper data if available
   if (place._description) place.editorial_summary = { overview: place._description };
   if (place._responseRate !== undefined) place._outscraper_response_rate = place._responseRate;
@@ -2953,8 +2956,10 @@ function calcRevenueImpact(category, serpResults, currentRating, totalReviews) {
   const currentCTR = ctrByPos[Math.round(avgPos)] || 0.01;
   const targetCTR = ctrByPos[1] || 0.29;
   
-  const currentMonthlyLeads = Math.round(monthlySearches * currentCTR * keywordCount * 0.08);
-  const potentialMonthlyLeads = Math.round(monthlySearches * targetCTR * keywordCount * 0.08);
+  // Realistic lead estimates — local business captures small fraction of searches
+  const localShareFactor = 0.005; // 0.5% of monthly searches reach this one business
+  const currentMonthlyLeads = Math.max(1, Math.round(monthlySearches * currentCTR * localShareFactor));
+  const potentialMonthlyLeads = Math.max(currentMonthlyLeads + 2, Math.round(monthlySearches * targetCTR * localShareFactor * 1.35));
   const leadGap = Math.max(0, potentialMonthlyLeads - currentMonthlyLeads);
   const conversionRate = 0.35;
   const monthlyRevGap = Math.round(leadGap * conversionRate * jobValue);
