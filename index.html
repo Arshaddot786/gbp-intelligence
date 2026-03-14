@@ -1083,6 +1083,21 @@ function selectPlan(tierId) {
   closePricingModal();
 }
 
+
+/* ── CITY EXTRACTOR — GLOBAL ── */
+function _getCityFromAddr(addr) {
+  if (!addr) return '';
+  const parts = addr.split(',').map(s => s.trim()).filter(Boolean);
+  if (/^(USA|US|Canada)$/i.test(parts[parts.length-1])) parts.pop();
+  if (parts.length < 2) return parts[0] || '';
+  const stateZip = parts[parts.length-1];
+  const stateMatch = stateZip.match(/^([A-Z]{2})\s*\d/);
+  const state = stateMatch ? stateMatch[1] : stateZip.replace(/[0-9\s]/g,'').trim().split(' ')[0];
+  const cityRaw = parts[parts.length-2];
+  if (/^\d/.test(cityRaw) && parts.length > 2) return (parts[parts.length-3]||cityRaw) + (state?', '+state:'');
+  return cityRaw + (state ? ', '+state : '');
+}
+
 /* ── GLOBAL STATE ── */
 let PD = {};          // Profile Data
 let IS_DEMO = false;
@@ -1471,7 +1486,7 @@ async function startPlacesAudit(placeId, bizName) {
       addLog('Step: photos...', 'active');
       renderPhotos(m.photoItems||[]);
       addLog('Step: competitors...', 'active');
-      renderCompetitors(m.name,m.address,sOverall,m.avgRating,m.totalReviews,m.photoCount,PD.loc?._placesData);
+      renderCompetitors(m.bizName||m.name,m.address,sOverall,m.avgRating,m.totalReviews,m.photoCount,PD.loc?._placesData);
       addLog('Step: map pack...', 'active');
       renderMapPack(m, sOverall);
       addLog('Step: actions...', 'active');
@@ -1611,21 +1626,37 @@ function buildPDFromPlaces(placeRaw) {
   const photos       = place.photos || [];
   const photoCount   = Math.max(photos.length, totalReviews > 100 ? Math.round(totalReviews * 0.3) : photos.length);
 
-  // Infer category from types
+  // Infer category — check business name first, then primaryType, then types array
+  const bizNameLower = (place.name || '').toLowerCase();
+  const primaryType = (place.primaryTypeDisplayName?.text || place.primaryTypeDisplayName || '').toLowerCase();
   const typeStr = (place.types || []).join(' ').toLowerCase();
+  const allSignals = bizNameLower + ' ' + primaryType + ' ' + typeStr;
+
   let cat = 'Local Business';
-  if (typeStr.includes('roofing')) cat = 'Roofing';
-  else if (typeStr.includes('plumb')) cat = 'Plumbing';
-  else if (typeStr.includes('hvac') || typeStr.includes('air_conditioning')) cat = 'HVAC';
-  else if (typeStr.includes('landscap')) cat = 'Landscaping';
-  else if (typeStr.includes('cleaning')) cat = 'Cleaning Services';
-  else if (typeStr.includes('paint')) cat = 'Painting';
-  else if (typeStr.includes('electr')) cat = 'Electrical';
-  else if (typeStr.includes('general_contractor')) cat = 'General Contracting';
-  else if (typeStr.includes('pest')) cat = 'Pest Control';
-  else if (typeStr.includes('dentist') || typeStr.includes('dental')) cat = 'Dentist';
-  else if (typeStr.includes('car_wash') || typeStr.includes('auto_detailing')) cat = 'Auto Detailing';
-  else if (typeStr.includes('moving')) cat = 'Moving Services';
+  // Business name overrides everything — most reliable signal
+  if (bizNameLower.includes('air condition') || bizNameLower.includes('hvac') || bizNameLower.includes('heating') || bizNameLower.includes('cooling') || bizNameLower.includes('furnace')) cat = 'HVAC';
+  else if (bizNameLower.includes('roof')) cat = 'Roofing';
+  else if (bizNameLower.includes('plumb')) cat = 'Plumbing';
+  else if (bizNameLower.includes('landscap') || bizNameLower.includes('lawn')) cat = 'Landscaping';
+  else if (bizNameLower.includes('paint')) cat = 'Painting';
+  else if (bizNameLower.includes('electric')) cat = 'Electrical';
+  else if (bizNameLower.includes('detail') || bizNameLower.includes('ceramic coat')) cat = 'Auto Detailing';
+  else if (bizNameLower.includes('moving') || bizNameLower.includes('movers')) cat = 'Moving Services';
+  else if (bizNameLower.includes('pest') || bizNameLower.includes('exterminator')) cat = 'Pest Control';
+  else if (bizNameLower.includes('clean')) cat = 'Cleaning Services';
+  // Then check primaryType and types
+  else if (allSignals.includes('hvac') || allSignals.includes('air_condition')) cat = 'HVAC';
+  else if (allSignals.includes('roofing')) cat = 'Roofing';
+  else if (allSignals.includes('plumb')) cat = 'Plumbing';
+  else if (allSignals.includes('landscap')) cat = 'Landscaping';
+  else if (allSignals.includes('cleaning')) cat = 'Cleaning Services';
+  else if (allSignals.includes('paint')) cat = 'Painting';
+  else if (allSignals.includes('electr')) cat = 'Electrical';
+  else if (allSignals.includes('general_contractor')) cat = 'General Contracting';
+  else if (allSignals.includes('pest')) cat = 'Pest Control';
+  else if (allSignals.includes('dentist') || allSignals.includes('dental')) cat = 'Dentist';
+  else if (allSignals.includes('car_wash') || allSignals.includes('auto_detail')) cat = 'Auto Detailing';
+  else if (allSignals.includes('moving')) cat = 'Moving Services';
 
   PD.meta = {
     bizName: place.name,
@@ -2461,7 +2492,7 @@ function renderKeywordResults(results, m, score, source) {
 /* ── LEGACY WRAPPER — kept for compatibility ── */
 function renderKeywordTable(m) {
   const cat = (m.cat||'').toLowerCase();
-  const city = _getCityFromAddr ? _getCityFromAddr(m.address) : (m.address||'').split(',')[1]?.trim() || 'your city';
+  const city = _getCityFromAddr(m.address) || 'your city';
   const fullCity = city;
 
   const serviceMap = {
@@ -2550,7 +2581,7 @@ function renderReviews(avgRating, total, reviews) {
     <div class="review-stat-card"><div class="review-stat-num">${total}</div><div class="review-stat-label">TOTAL REVIEWS</div></div>
     <div class="review-stat-card"><div class="review-stat-num" style="color:var(--green)">${fiveStar}</div><div class="review-stat-label">5★ REVIEWS</div></div>
     <div class="review-stat-card"><div class="review-stat-num">${avgLen}</div><div class="review-stat-label">AVG REVIEW LENGTH</div></div>
-    <div class="review-stat-card"><div class="review-stat-num" style="color:var(--mid)">${avgLen}</div><div class="review-stat-label">AVG REVIEW LEN</div></div>`;
+    <div class="review-stat-card"><div class="review-stat-num" style="color:var(--mid)">${avgLen}</div></div>`;
 
   if (reviews.length) {
     const tot = reviews.length;
@@ -2717,7 +2748,7 @@ function renderCompFallback(bizName, myScore, myRating, myReviews, myPhotos) {
 /* ── MAP PACK RANKINGS ── */
 function renderMapPack(m, score) {
   const cat  = m.cat || 'Service';
-  const city = (m.address||'').split(',')[0]?.trim() || 'Your City';
+  const city = _getCityFromAddr(m.address) || 'Your City';
   const basePos = score>=85?2:score>=70?4:score>=55?7:score>=40?11:16;
 
   const keywords = [
