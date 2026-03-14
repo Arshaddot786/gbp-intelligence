@@ -2543,8 +2543,7 @@ function renderReviews(avgRating, total, reviews) {
   const responded = reviews.filter(r=>r.reviewReply?.comment).length;
   const rr = reviews.length ? Math.round(responded/reviews.length*100) : 0;
   const fiveStar = reviews.filter(r=>r.rating===5).length;
-  const avgLen = reviews.length ? Math.round(reviews.reduce((a,r)=>(a+(r.text?.length||0)),0)/reviews.length) : 0;
-  avgLen = reviews.length ? Math.round(reviews.reduce((a,r)=>a+(r.text?.length||0),0)/reviews.length) : 0;
+  const avgLen = reviews.length ? Math.round(reviews.reduce((a,r)=>a+(r.text?.length||0),0)/reviews.length) : 0;
 
   document.getElementById('r-review-stats').innerHTML = `
     <div class="review-stat-card"><div class="review-stat-num" style="color:var(--amber)">${(avgRating||0).toFixed(1)}★</div><div class="review-stat-label">AVG RATING</div></div>
