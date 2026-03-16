@@ -2093,7 +2093,7 @@ function renderRevenueProjection(m, score) {
   // Estimate based on trade, rating, reviews, score
   const tradeAvgJobVal = {
     'Roofing':8500,'HVAC':1200,'Plumbing':650,'Landscaping':850,'Painting':3200,
-    'Cleaning Services':250,'Auto Detailing':350,'Electrical':800,'General Contracting':6000,
+    'Cleaning Services':800,'Auto Detailing':350,'Electrical':800,'General Contracting':6000,
     'Pest Control':300,'Moving Services':1400,'Dentist / Med Spa':2200,'Local Business':500
   }[m.cat] || 800;
 
@@ -2939,7 +2939,17 @@ function renderActions(m, sc) {
     actions.push({ t:'Reach 100+ Photos — You Are Halfway', d:`You have ${m.photoCount} photos. Push to 100+ to hit the map pack threshold. Focus on before/after project photos, team action shots, and equipment photos. Upload 2+ new photos every week to also signal freshness to Google.`, l:'med', g:'+6 pts', t2:'Wk 3' });
 
   // ── SECONDARY CATEGORIES ──
-  actions.push({ t:'Add 3-5 Secondary Business Categories', d:`Your primary category is "${m.cat}". Add secondary categories for adjacent services — for example a roofer adds "Gutter Service", "Siding Contractor", "Roof Inspection". Each secondary category makes you eligible for completely new keyword searches without affecting your primary ranking.`, l:'med', g:'+5 pts', t2:'Wk 3' });
+  actions.push({ t:'Add 3-5 Secondary Business Categories', d:`Your primary category is "${m.cat}". Add 3-5 secondary categories for adjacent services. ${
+    m.cat==='Roofing'?'For example: add "Gutter Service", "Siding Contractor", "Roof Inspection Service"':
+    m.cat==='HVAC'?'For example: add "Air Conditioning Contractor", "Furnace Repair Service", "Heating Contractor"':
+    m.cat==='Plumbing'?'For example: add "Drainage Service", "Water Heater Installer", "Septic System Service"':
+    m.cat==='Tree Service'?'For example: add "Arborist", "Stump Removal Service", "Landscaping Contractor"':
+    m.cat==='Cleaning Services'?'For example: add "House Cleaning Service", "Commercial Cleaning Service", "Janitorial Service"':
+    m.cat==='Auto Detailing'?'For example: add "Car Wash", "Auto Upholstery Shop", "Paint Protection Service"':
+    m.cat==='Landscaping'?'For example: add "Lawn Care Service", "Irrigation Service", "Lawn Sprinkler System Contractor"':
+    m.cat==='Painting'?'For example: add "Deck Builder", "Siding Contractor", "Wallpaper Installer"':
+    'For example, add services adjacent to your primary trade'
+}. Each secondary category makes you eligible for completely new keyword searches without affecting your primary ranking.`, l:'med', g:'+5 pts', t2:'Wk 3' });
 
   // ── Q&A ──
   if (sc.qa < 40)
@@ -2959,7 +2969,7 @@ function renderActions(m, sc) {
   actions.push({ t:'Enable & Monitor Direct Messages', d:'Enable the messaging feature in your GBP settings. Businesses that respond to messages within 1 hour convert at 4× the rate of slow responders. Set up an auto-reply for after-hours so no lead goes cold overnight.', l:'low', g:'+3 pts', t2:'Mo 2' });
 
   // ── BLOG CONTENT ──
-  actions.push({ t:'Publish SEO Blog Articles (10-20/Month)', d:`Each article targeting a local keyword builds topical authority Google rewards. Target phrases like "best ${m.cat} in ${_getCityFromAddr(m.address)}" and "how to choose a ${(m.cat||'service').toLowerCase()} contractor". Businesses publishing 10-20 articles per month establish premium local authority within 60-90 days and generate organic leads long-term.`, l:'high', g:'+15 pts', t2:'Mo 2-3' });
+  actions.push({ t:'Publish SEO Blog Articles (10-20/Month)', d:`Each article targeting a local keyword builds topical authority Google rewards. Target phrases like "best ${m.cat} in ${_getCityFromAddr(m.address)}" and "how to choose a ${m.cat==='Cleaning Services'?'house cleaning service':(m.cat==='Tree Service'?'tree service':((m.cat||'service').toLowerCase()+' contractor'))}". Businesses publishing 10-20 articles per month establish premium local authority within 60-90 days and generate organic leads long-term.`, l:'high', g:'+15 pts', t2:'Mo 2-3' });
 
   // ── RENDER ──
   const labelMap = { crit:'CRIT', high:'HIGH', med:'MED', low:'LOW' };
@@ -3198,7 +3208,7 @@ async function fetchOutscraperGBP(businessName, address) {
 function calcRevenueImpact(category, serpResults, currentRating, totalReviews) {
   const avgJobValues = {
     'Roofing': 8500, 'HVAC': 1800, 'Plumbing': 650, 'Landscaping': 1200,
-    'Painting': 3500, 'Cleaning Services': 280, 'Auto Detailing': 180,
+    'Painting': 3500, 'Cleaning Services': 800, 'Auto Detailing': 180,
     'Electrical': 950, 'General Contracting': 12000, 'Pest Control': 350,
     'Moving Services': 1400, 'Dentist / Med Spa': 800,
   };
