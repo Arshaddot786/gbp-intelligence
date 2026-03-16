@@ -1386,7 +1386,45 @@ async function startPlacesAudit(placeId, bizName) {
       return cityRaw + (state ? ', ' + state : '');
     }
     const city = extractCityState(place.formatted_address);
-    const keywords = getKeywordsForBusiness(place.types?.[0]||'local service', city);
+    // Detect category same way as buildPDFromPlaces for correct keywords
+    const _bzN = (place.name||'').toLowerCase();
+    const _ptN = (place.primaryTypeDisplayName?.text||place.primaryTypeDisplayName||'').toLowerCase();
+    const _tpS = (place.types||[]).join(' ').toLowerCase();
+    const _all = _bzN + ' ' + _ptN + ' ' + _tpS;
+    const _nameChecks = [
+      [['tree','arborist'],'Tree Service'],
+      [['air condition','hvac','heating','cooling','furnace'],'HVAC'],
+      [['roof','shingle'],'Roofing'],
+      [['plumb','drain','sewer'],'Plumbing'],
+      [['landscap','lawn care','lawn mow'],'Landscaping'],
+      [['paint','stain'],'Painting'],
+      [['electric','wiring'],'Electrical'],
+      [['detailing','ceramic coat','car wash'],'Auto Detailing'],
+      [['moving','movers'],'Moving Services'],
+      [['pest','exterminator'],'Pest Control'],
+      [['clean','maid','janitorial'],'Cleaning Services'],
+      [['fence','fencing'],'Fencing'],
+      [['window','glass'],'Window Services'],
+      [['carpet','floor','tile','hardwood'],'Flooring'],
+      [['garage door'],'Garage Door'],
+      [['pool','hot tub'],'Pool Services'],
+      [['solar'],'Solar'],
+      [['concrete','paving','asphalt','driveway'],'Concrete & Paving'],
+      [['dentist','dental'],'Dentist'],
+    ];
+    let _detCat = 'Local Business';
+    for (const [terms, label] of _nameChecks) {
+      if (terms.some(t => _bzN.includes(t))) { _detCat = label; break; }
+    }
+    if (_detCat === 'Local Business') {
+      for (const [terms, label] of _nameChecks) {
+        if (terms.some(t => _all.includes(t))) { _detCat = label; break; }
+      }
+    }
+    if (_detCat === 'Local Business' && _ptN && _ptN.length > 3) {
+      _detCat = _ptN.replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase()).trim();
+    }
+    const keywords = getKeywordsForBusiness(_detCat, city);
     let serpResults = [];
     if (CONFIG.SERPAPI_ENABLED) {
       const serpChecks = await Promise.all(keywords.slice(0,5).map(kw => checkSerpApiMapPack(kw, city, bizName)));
@@ -2393,7 +2431,7 @@ async function fetchAndRenderKeywords(m, placesData) {
     if (liveBanner)  liveBanner.style.display  = 'none';
     if (setupBanner) setupBanner.style.display = 'block';
   }
-  const cat  = (m.cat || '').toLowerCase();
+  const cat  = m.cat || 'Local Business'; // Keep original case for kwMap lookup
   // Extract proper city from address for keyword display
   function _getCityFromAddr(addr) {
     if (!addr) return 'your city';
