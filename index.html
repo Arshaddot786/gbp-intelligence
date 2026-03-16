@@ -2897,37 +2897,90 @@ function renderMapPack(m, score) {
 function renderActions(m, sc) {
   const actions = [];
   const isP = m.isPlaces;
+  const score = sc.overall || 0;
 
-  if (!m.verified && !isP)   actions.push({ t:'Verify Google Business Profile',    d:'CRITICAL — Non-verified profiles are invisible in competitive searches. Go to business.google.com → complete verification now.',                 l:'crit', g:'+15 pts', t2:'Wk 1' });
-  if (!m.website)             actions.push({ t:'Add Website Link to Profile',        d:'Profiles without websites get 70% fewer contacts. Add your website URL and set up UTM tracking to measure GBP-driven visits.',                  l:'crit', g:'+8 pts',  t2:'Wk 1' });
-  if (m.photoCount<25)        actions.push({ t:'Upload 50+ Quality Photos Now',      d:`At ${m.photoCount} photos you\'re well below the 100-photo threshold. Categories: exterior, interior, team, work portfolio, before/after, equipment.`, l:'crit', g:'+14 pts', t2:'Wk 1' });
-  if (!isP&&sc.response<60)   actions.push({ t:'Respond to All Unanswered Reviews',  d:`${m.allReviews.filter(r=>!r.reviewReply?.comment).length} reviews have no owner response. Respond within 24hrs — positive AND negative.`,       l:'crit', g:'+12 pts', t2:'Wk 1' });
-  if (!isP&&sc.post<40)       actions.push({ t:'Start Posting 3× Per Week',          d:'Zero or minimal Google Posts detected. Post UPDATE, OFFER, and EVENT types consistently — this is a live ranking signal Google checks weekly.',   l:'crit', g:'+10 pts', t2:'Wk 2' });
-  if (m.totalReviews<50)      actions.push({ t:'Launch Review Generation System',    d:'Text every customer post-job with a direct Google review link. Target 5 new reviews/week. This is the fastest single lever for map pack ranking.', l:'high', g:'+11 pts', t2:'Wk 2' });
-  if (!m.desc||m.desc.length<300)actions.push({ t:'Write Keyword-Rich Description', d:`Current: ${m.desc?.length||0} chars. Write 500-750 characters for your GBP description. Include your primary service + city in the first 250 characters. Go to business.google.com → Edit Profile → Business Description.`,l:'high', g:'+8 pts',  t2:'Wk 2' });
-  if (!isP&&sc.qa<50)         actions.push({ t:'Seed 15+ Q&A Pairs Yourself',        d:'Q&A section is free keyword real estate. Create questions as a customer, answer as the owner with keyword-rich, city-specific answers.',           l:'high', g:'+7 pts',  t2:'Wk 3' });
-  if (m.avgRating<4.5)        actions.push({ t:'Launch Reputation Repair Campaign',  d:`${(m.avgRating||0).toFixed(1)}★ is below the 4.5 threshold. Identify root causes of lower-rated experiences and systematically address them.`,  l:'high', g:'+9 pts',  t2:'Wk 3' });
-  actions.push({ t:'Add Secondary Business Categories',  d:'Add 3-5 secondary categories for adjacent services. Each additional category makes you eligible for more keyword searches without diluting your primary positioning.', l:'med', g:'+5 pts', t2:'Wk 3' });
-  actions.push({ t:'Upload Monthly Videos to Profile',   d:'Add 1+ video per month — job walkthrough, team intro, or customer testimonial. Videos get 2× engagement vs photos and signal active, trustworthy business.', l:'med', g:'+6 pts', t2:'Wk 4' });
-  actions.push({ t:'Build Directory Citations', d:'Ensure business info is consistent across Yelp, BBB, HomeAdvisor, Houzz, Angi, and Nextdoor. NAP inconsistencies directly suppress local search rankings.', l:'med', g:'+6 pts', t2:'Mo 2' });
-  actions.push({ t:'Publish SEO Blog Articles (10-20/Month)', d:'Each article targeting a local keyword builds topical authority Google rewards. Target phrases like "best ' + (m.cat||'service') + ' in ' + (_getCityFromAddr(m.address)||'your city') + '" and "how to choose a ' + (m.cat||'service provider') + '". Businesses publishing 10-20 articles per month establish premium local authority within 60-90 days and generate organic leads long-term.', l:'high', g:'+15 pts', t2:'Mo 2-3' });
+  // ── CRITICAL ISSUES FIRST ──
+  if (!m.website)
+    actions.push({ t:'Add Website Link to Profile', d:'Profiles without websites get 70% fewer contacts. Add your website URL in business.google.com → Edit Profile → Business info. Immediately improves profile completeness and trust signals.', l:'crit', g:'+8 pts', t2:'Wk 1' });
 
-  document.getElementById('r-actions').innerHTML = actions.slice(0,10).map((a,i) => `
-    <div class="action-item ${a.l}">
+  if (m.photoCount < 25)
+    actions.push({ t:'Upload 50+ Quality Photos Now', d:`You have ${m.photoCount} photos — well below the 100-photo threshold. Upload: exterior shots, team photos, before/after work, equipment, and customer interactions. Profiles with 100+ photos get 520% more calls.`, l:'crit', g:'+14 pts', t2:'Wk 1' });
+
+  if (m.totalReviews < 50)
+    actions.push({ t:'Launch Review Generation System', d:`You have ${m.totalReviews} reviews — below the 50-review threshold for consistent map pack placement. Text every customer a direct Google review link after each job. Target 5 new reviews per week minimum.`, l:'crit', g:'+11 pts', t2:'Wk 1' });
+
+  // ── DESCRIPTION ──
+  if (!m.desc || m.desc.length < 100)
+    actions.push({ t:'Write Keyword-Rich GBP Description', d:`Your profile has no description — this is a significant ranking gap. Write 500-750 characters. Open business.google.com → Edit Profile → Business Description. Start the first 250 characters with: "${m.cat} in ${_getCityFromAddr(m.address)}" and describe your top 3 services.`, l:'high', g:'+8 pts', t2:'Wk 1' });
+
+  // ── REVIEW VELOCITY ──
+  const recentRevs = (m.allReviews||[]).filter(r=>(Date.now()-r.time*1000)<30*864e5).length;
+  if (recentRevs < 3)
+    actions.push({ t:'Fix Stale Review Velocity', d:`Only ${recentRevs} review${recentRevs===1?'':'s'} in the last 30 days. Google's algorithm heavily weights fresh reviews. Set up an automated SMS review request sent within 1 hour of job completion. Target: 5+ new reviews every week.`, l:'high', g:'+9 pts', t2:'Wk 1' });
+
+  // ── STAR RATING ──
+  if (m.avgRating < 4.5)
+    actions.push({ t:'Reputation Repair — Boost Star Rating', d:`${(m.avgRating||0).toFixed(1)}★ average is below the 4.5 threshold top map pack businesses maintain. Identify the root cause of lower ratings, reach out to unhappy customers personally, and build a system to generate 5-star reviews after every successful job.`, l:'high', g:'+9 pts', t2:'Wk 2' });
+
+  // ── RESPONSE RATE ──
+  if (sc.response < 65)
+    actions.push({ t:'Respond to Every Google Review', d:'Your estimated response rate is below 65%. Google directly measures owner responsiveness and factors it into ranking. Respond to every review — 5-star and 1-star — within 24 hours. Even a simple "Thank you [name], we appreciate your business!" on 5-star reviews boosts your ranking signal.', l:'high', g:'+7 pts', t2:'Wk 2' });
+
+  // ── POSTING ──
+  if (sc.post < 35)
+    actions.push({ t:'Start Posting 3× Per Week on GBP', d:'Your profile shows minimal or no recent Google Posts. Posting is a live ranking signal Google checks weekly. Post: (1) a completed job photo Monday, (2) a tip or insight Wednesday, (3) a seasonal offer Friday. Use the Google Business Profile app to post in under 2 minutes.', l:'high', g:'+10 pts', t2:'Wk 2' });
+
+  // ── OFFER POSTS ──
+  if (sc.post < 50)
+    actions.push({ t:'Create a Monthly Offer Post', d:`Add an active offer post — "Free Estimate", "10% Off First Service", or a seasonal special. Offer posts get the highest click-through rate of all post types on GBP and signal an active, customer-focused business to Google.`, l:'med', g:'+5 pts', t2:'Wk 2' });
+
+  // ── PHOTO DIVERSITY ──
+  if (m.photoCount >= 25 && m.photoCount < 100)
+    actions.push({ t:'Reach 100+ Photos — You Are Halfway', d:`You have ${m.photoCount} photos. Push to 100+ to hit the map pack threshold. Focus on before/after project photos, team action shots, and equipment photos. Upload 2+ new photos every week to also signal freshness to Google.`, l:'med', g:'+6 pts', t2:'Wk 3' });
+
+  // ── SECONDARY CATEGORIES ──
+  actions.push({ t:'Add 3-5 Secondary Business Categories', d:`Your primary category is "${m.cat}". Add secondary categories for adjacent services — for example a roofer adds "Gutter Service", "Siding Contractor", "Roof Inspection". Each secondary category makes you eligible for completely new keyword searches without affecting your primary ranking.`, l:'med', g:'+5 pts', t2:'Wk 3' });
+
+  // ── Q&A ──
+  if (sc.qa < 40)
+    actions.push({ t:'Seed 15+ Q&A Pairs on Your Profile', d:`Your Q&A section is empty or sparse. This is free keyword real estate visible in Google search results. Search your own business on Google, scroll to Q&A, and post 15 common customer questions — then answer each one yourself with keyword-rich, city-specific answers covering pricing, process, and guarantees.`, l:'med', g:'+7 pts', t2:'Wk 3' });
+
+  // ── KEYWORD SIGNALS ──
+  if (!m.desc || m.desc.length < 400)
+    actions.push({ t:'Add Keyword-Rich Service Descriptions', d:`Expand your content to improve keyword signals. Beyond the main description, ensure your service areas mention "${_getCityFromAddr(m.address)}" and surrounding cities. Add a list of specific services you offer. Google reads all GBP content for relevance signals.`, l:'med', g:'+5 pts', t2:'Wk 3' });
+
+  // ── VIDEOS ──
+  actions.push({ t:'Upload Monthly Videos to Profile', d:'Add 1+ video per month — a job walkthrough, team introduction, or customer testimonial. Videos get 2× engagement compared to photos and signal an active, trustworthy business. Use your phone to film a 60-90 second job completion video after your next project.', l:'med', g:'+6 pts', t2:'Wk 4' });
+
+  // ── CITATIONS ──
+  actions.push({ t:'Build Local Directory Citations', d:`Ensure your business name, address, and phone (NAP) is identical on Yelp, BBB, HomeAdvisor, Houzz, Angi, and Nextdoor. Even small differences like "St" vs "Street" suppress rankings. Each consistent citation also increases your local authority domain signals.`, l:'med', g:'+6 pts', t2:'Mo 2' });
+
+  // ── DIRECT MESSAGES ──
+  actions.push({ t:'Enable & Monitor Direct Messages', d:'Enable the messaging feature in your GBP settings. Businesses that respond to messages within 1 hour convert at 4× the rate of slow responders. Set up an auto-reply for after-hours so no lead goes cold overnight.', l:'low', g:'+3 pts', t2:'Mo 2' });
+
+  // ── BLOG CONTENT ──
+  actions.push({ t:'Publish SEO Blog Articles (10-20/Month)', d:`Each article targeting a local keyword builds topical authority Google rewards. Target phrases like "best ${m.cat} in ${_getCityFromAddr(m.address)}" and "how to choose a ${m.cat}". Businesses publishing 10-20 articles per month establish premium local authority within 60-90 days and generate organic leads long-term.`, l:'high', g:'+15 pts', t2:'Mo 2-3' });
+
+  // ── RENDER ──
+  const labelMap = { crit:'CRIT', high:'HIGH', med:'MED', low:'LOW' };
+  const colorMap = { crit:'var(--red)', high:'var(--gold)', med:'var(--green)', low:'var(--mid)' };
+
+  document.getElementById('r-actions').innerHTML = actions.map((a,i) => `
+    <div class="action-item" style="animation-delay:${i*60}ms">
       <div class="action-num">${i+1}</div>
       <div class="action-body">
         <div class="action-title">${a.t}</div>
         <div class="action-desc">${a.d}</div>
       </div>
-      <div class="action-right">
-        <span class="pill ${a.l==='crit'?'pill-red':a.l==='high'?'pill-amber':'pill-green'}">${a.l.toUpperCase()}</span>
-        <div class="action-gain">${a.g}</div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);">${a.t2}</div>
+      <div class="action-meta">
+        <span class="action-impact" style="color:${colorMap[a.l]};background:${colorMap[a.l]}18;">${labelMap[a.l]}</span>
+        <span class="action-pts">${a.g}</span>
+        <span class="action-week">${a.t2}</span>
       </div>
     </div>`).join('');
 }
 
-/* ── POSTS AUDIT ── */
+
 function renderPosts(posts) {
   const sec = document.getElementById('posts-sec');
   const grid = document.getElementById('r-posts');
