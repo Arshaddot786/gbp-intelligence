@@ -1916,7 +1916,7 @@ function buildReport() {
   // Render sections 05-09
   renderReviews(m.avgRating, m.totalReviews, Array.isArray(m.allReviews) ? m.allReviews : []);
   renderPhotos(m.photoItems || []);
-  renderCompetitors(PD.meta?.name, PD.meta?.address, PD.scores?.overall||60, PD.meta?.avgRating||0, PD.meta?.totalReviews||0, PD.meta?.photoCount||0, PD.loc?._placesData);
+  renderCompetitors(PD.meta?.bizName||PD.meta?.name||'Your Business', PD.meta?.address, PD.scores?.overall||60, PD.meta?.avgRating||0, PD.meta?.totalReviews||0, PD.meta?.photoCount||0, PD.loc?._placesData);
   renderMapPack(m, PD.scores?.overall || 60);
   renderActions(m, PD.scores);
   renderPosts(m.postList || []);
@@ -1994,7 +1994,7 @@ function buildReport() {
   });
   renderReviews(m.avgRating, m.totalReviews, m.allReviews);
   renderPhotos(m.photoItems);
-  renderCompetitors(m.bizName, m.address, sOverall, m.avgRating, m.totalReviews, m.photoCount, PD.loc._placesData);
+  renderCompetitors(m.bizName||m.name||'Your Business', m.address, sOverall, m.avgRating, m.totalReviews, m.photoCount, PD.loc._placesData);
   renderMapPack(m, sOverall);
   renderActions(m, PD.scores);
   renderPosts(m.postList);
@@ -2283,13 +2283,15 @@ function getKeywordsForBusiness(cat, city) {
   // Universal fallback: extract keywords from business name for unknown trades
   let kws = kwMap[cat];
   if (!kws) {
-    const cleanName = cat.toLowerCase()
-      .replace(/\b(the|a|an|inc|llc|co|company|group|team|pros?|services?|solutions?)\b/gi,'')
-      .trim();
-    const serviceWord = cleanName || 'service';
+    // Use the full category name as-is for keywords — don't strip words
+    const serviceWord = cat.toLowerCase();
     kws = [
-      serviceWord, serviceWord + ' near me', 'best ' + serviceWord,
-      'local ' + serviceWord, 'professional ' + serviceWord, 'affordable ' + serviceWord,
+      serviceWord + ' near me',
+      'best ' + serviceWord,
+      'local ' + serviceWord,
+      'professional ' + serviceWord,
+      'affordable ' + serviceWord,
+      'emergency ' + serviceWord,
     ];
   }
   return kws.map(kw => kw + ' ' + city);
@@ -2864,12 +2866,13 @@ function renderActions(m, sc) {
   if (!isP&&sc.response<60)   actions.push({ t:'Respond to All Unanswered Reviews',  d:`${m.allReviews.filter(r=>!r.reviewReply?.comment).length} reviews have no owner response. Respond within 24hrs — positive AND negative.`,       l:'crit', g:'+12 pts', t2:'Wk 1' });
   if (!isP&&sc.post<40)       actions.push({ t:'Start Posting 3× Per Week',          d:'Zero or minimal Google Posts detected. Post UPDATE, OFFER, and EVENT types consistently — this is a live ranking signal Google checks weekly.',   l:'crit', g:'+10 pts', t2:'Wk 2' });
   if (m.totalReviews<50)      actions.push({ t:'Launch Review Generation System',    d:'Text every customer post-job with a direct Google review link. Target 5 new reviews/week. This is the fastest single lever for map pack ranking.', l:'high', g:'+11 pts', t2:'Wk 2' });
-  if (!m.desc||m.desc.length<300)actions.push({ t:'Write Keyword-Rich Description', d:`Current: ${m.desc?.length||0} chars. Write 500-750 characters for your GBP description. Include your primary service + city in the first 250 characters. Go to business.google.com → Edit Profile → Business Description. embedding primary trade + city + service keywords naturally in the first 250 characters.`,l:'high', g:'+8 pts',  t2:'Wk 2' });
+  if (!m.desc||m.desc.length<300)actions.push({ t:'Write Keyword-Rich Description', d:`Current: ${m.desc?.length||0} chars. Write 500-750 characters for your GBP description. Include your primary service + city in the first 250 characters. Go to business.google.com → Edit Profile → Business Description.`,l:'high', g:'+8 pts',  t2:'Wk 2' });
   if (!isP&&sc.qa<50)         actions.push({ t:'Seed 15+ Q&A Pairs Yourself',        d:'Q&A section is free keyword real estate. Create questions as a customer, answer as the owner with keyword-rich, city-specific answers.',           l:'high', g:'+7 pts',  t2:'Wk 3' });
   if (m.avgRating<4.5)        actions.push({ t:'Launch Reputation Repair Campaign',  d:`${(m.avgRating||0).toFixed(1)}★ is below the 4.5 threshold. Identify root causes of lower-rated experiences and systematically address them.`,  l:'high', g:'+9 pts',  t2:'Wk 3' });
   actions.push({ t:'Add Secondary Business Categories',  d:'Add 3-5 secondary categories for adjacent services. Each additional category makes you eligible for more keyword searches without diluting your primary positioning.', l:'med', g:'+5 pts', t2:'Wk 3' });
   actions.push({ t:'Upload Monthly Videos to Profile',   d:'Add 1+ video per month — job walkthrough, team intro, or customer testimonial. Videos get 2× engagement vs photos and signal active, trustworthy business.', l:'med', g:'+6 pts', t2:'Wk 4' });
-  actions.push({ t:'Build Directory Citations',           d:'Ensure business info is consistent across Yelp, BBB, HomeAdvisor, Houzz, Angi, and Nextdoor. NAP inconsistencies directly suppress local search rankings.', l:'med', g:'+6 pts', t2:'Mo 2' });
+  actions.push({ t:'Build Directory Citations', d:'Ensure business info is consistent across Yelp, BBB, HomeAdvisor, Houzz, Angi, and Nextdoor. NAP inconsistencies directly suppress local search rankings.', l:'med', g:'+6 pts', t2:'Mo 2' });
+  actions.push({ t:'Publish SEO Blog Articles (10-20/Month)', d:'Each article targeting a local keyword builds topical authority Google rewards. Target phrases like "best ' + (m.cat||'service') + ' in ' + (_getCityFromAddr(m.address)||'your city') + '" and "how to choose a ' + (m.cat||'service provider') + '". Businesses publishing 10-20 articles per month establish premium local authority within 60-90 days and generate organic leads long-term.', l:'high', g:'+15 pts', t2:'Mo 2-3' });
 
   document.getElementById('r-actions').innerHTML = actions.slice(0,10).map((a,i) => `
     <div class="action-item ${a.l}">
