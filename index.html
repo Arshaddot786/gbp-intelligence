@@ -332,7 +332,7 @@ body {
 .load-step-icon { width:20px; text-align:center; }
 
 /* ── REPORT PAGE ── */
-.report-wrap { max-width:960px; margin:0 auto; padding:80px 24px 60px; }
+.report-wrap { max-width:960px; margin:0 auto; padding:80px 24px 120px; }
 
 .report-header {
   background:linear-gradient(135deg,rgba(200,169,126,.08),rgba(200,169,126,.03));
@@ -614,7 +614,7 @@ body {
 
 /* CTA */
 .report-cta {
-  margin-top:48px; padding:36px;
+  margin-top:48px; margin-bottom:60px; padding:36px;
   background:linear-gradient(135deg,rgba(200,169,126,.1),rgba(155,93,229,.06));
   border:1px solid var(--gold-brd); border-radius:16px;
   text-align:center;
@@ -2184,8 +2184,8 @@ function render30Audit(m, sc, isP) {
     { n:'BUSINESS DESCRIPTION',       cat:'CONTENT',            s:m.desc?.length>500?92:m.desc?.length>200?68:m.desc?.length>50?55:75,
       f:m.desc?.length>500?`Description at <strong>${m.desc.length} characters</strong>. Excellent. Ensure primary keywords appear in the first 250 characters for maximum ranking impact.`:
         m.desc?.length>200?`Description at <strong>${m.desc.length} characters</strong>. Expand to 500+ with service + city keywords for max search impact.`:
-        m.desc?.length>50?`Short description detected. Expand to 500-750 characters — embed your primary service + city keywords naturally in the first 250 characters.`:
-        `<strong>Add a keyword-rich description</strong> — 500-750 characters works best. Open business.google.com, go to Edit Profile, and write about your services + the cities you serve. Target keywords like "${m.cat} in [your city]" naturally in the first 250 characters.` },
+        m.desc?.length>50?`Description at <strong>${m.desc.length} characters</strong>. Expand to 500-750 and ensure your primary service + city keyword appears in the FIRST 250 characters for maximum ranking impact.`:
+        `<strong>Optimize your GBP description</strong> — 500-750 characters works best. Put your primary keyword "<strong>${m.cat} in ${_getCityFromAddr?_getCityFromAddr(m.address):'your city'}</strong>" naturally in the first 250 characters. Google reads the first 250 characters first when scoring your profile for local search relevance.` },
     { n:'WEBSITE LINK',               cat:'FOUNDATION',         s:m.website?90:10,
       f:m.website?`Linked: <strong>${m.website}</strong>. Add UTM parameters (utm_source=googlebusiness) to track GBP-driven traffic in analytics.`:
         '<strong>No website linked.</strong> Missing critical conversion element. Profiles without websites get 70% fewer direct contacts.' },
@@ -2198,7 +2198,7 @@ function render30Audit(m, sc, isP) {
     { n:'PRIMARY CATEGORY MATCH',     cat:'FOUNDATION',         s:m.cat?85:20,
       f:`Category: <strong>${m.cat||'Unknown'}</strong>. This is your #1 keyword ranking signal — ensure it exactly matches your core service type. Wrong category = wrong searches.` },
     { n:'PROFILE COMPLETENESS',       cat:'FOUNDATION',         s:scoreProfile(m.desc,m.website,m.phone,m.cat,m.hours),
-      f:`Fields present: website (${m.website?'✓':'✗'}), phone (${m.phone?'✓':'✗'}), hours (${m.hours?'✓':'✗'}), description (${m.desc?.length > 0 ? m.desc.length+' chars ✓' : 'check GBP dashboard'}). Each missing field suppresses ranking independently.` },
+      f:`Fields present: website (${m.website?'✓':'✗'}), phone (${m.phone?'✓':'✗'}), hours (${m.hours?'✓':'✗'}), description (${m.desc?.length > 0 ? m.desc.length+' chars ✓' : 'optimize for keywords'}). Each missing field suppresses ranking independently.` },
 
     // TRUST SIGNALS
     { n:'REVIEW VOLUME',              cat:'TRUST SIGNALS',      s:scoreReviews(m.avgRating,m.totalReviews),
@@ -2910,8 +2910,8 @@ function renderActions(m, sc) {
     actions.push({ t:'Launch Review Generation System', d:`You have ${m.totalReviews} reviews — below the 50-review threshold for consistent map pack placement. Text every customer a direct Google review link after each job. Target 5 new reviews per week minimum.`, l:'crit', g:'+11 pts', t2:'Wk 1' });
 
   // ── DESCRIPTION ──
-  if (!m.desc || m.desc.length < 100)
-    actions.push({ t:'Write Keyword-Rich GBP Description', d:`Your profile has no description — this is a significant ranking gap. Write 500-750 characters. Open business.google.com → Edit Profile → Business Description. Start the first 250 characters with: "${m.cat} in ${_getCityFromAddr(m.address)}" and describe your top 3 services.`, l:'high', g:'+8 pts', t2:'Wk 1' });
+  // Description — Places API can't read it, so always show optimization advice
+  actions.push({ t:'Optimize Your GBP Description for SEO', d:`Your description is your #1 keyword ranking signal. Open business.google.com → Edit Profile → Business Description. Write 500-750 characters. Put "${m.cat} in ${_getCityFromAddr(m.address)}" naturally in the FIRST 250 characters — this is what Google reads first. Then list your top 3-5 services with city names. Example first line: "Looking for the best ${m.cat} in ${_getCityFromAddr(m.address)}? [Business name] has served [city] homeowners since [year] with [service 1], [service 2], and [service 3]."`, l:'high', g:'+8 pts', t2:'Wk 1' });
 
   // ── REVIEW VELOCITY ──
   const recentRevs = (m.allReviews||[]).filter(r=>(Date.now()-r.time*1000)<30*864e5).length;
@@ -2959,7 +2959,7 @@ function renderActions(m, sc) {
   actions.push({ t:'Enable & Monitor Direct Messages', d:'Enable the messaging feature in your GBP settings. Businesses that respond to messages within 1 hour convert at 4× the rate of slow responders. Set up an auto-reply for after-hours so no lead goes cold overnight.', l:'low', g:'+3 pts', t2:'Mo 2' });
 
   // ── BLOG CONTENT ──
-  actions.push({ t:'Publish SEO Blog Articles (10-20/Month)', d:`Each article targeting a local keyword builds topical authority Google rewards. Target phrases like "best ${m.cat} in ${_getCityFromAddr(m.address)}" and "how to choose a ${m.cat}". Businesses publishing 10-20 articles per month establish premium local authority within 60-90 days and generate organic leads long-term.`, l:'high', g:'+15 pts', t2:'Mo 2-3' });
+  actions.push({ t:'Publish SEO Blog Articles (10-20/Month)', d:`Each article targeting a local keyword builds topical authority Google rewards. Target phrases like "best ${m.cat} in ${_getCityFromAddr(m.address)}" and "how to choose a ${(m.cat||'service').toLowerCase()} contractor". Businesses publishing 10-20 articles per month establish premium local authority within 60-90 days and generate organic leads long-term.`, l:'high', g:'+15 pts', t2:'Mo 2-3' });
 
   // ── RENDER ──
   const labelMap = { crit:'CRIT', high:'HIGH', med:'MED', low:'LOW' };
