@@ -1635,14 +1635,14 @@ function buildPDFromPlaces(placeRaw) {
   let cat = 'Local Business';
   // Name-based detection first — override everything
   const nameChecks = [
-    [['tree service','tree removal','tree trimming','arborist','tree cutting'], 'Tree Service'],
-    [['air condition','hvac','heating','cooling','furnace','refrigerat'], 'HVAC'],
-    [['roof','shingle','gutter'], 'Roofing'],
-    [['plumb','drain','sewer','pipe'], 'Plumbing'],
-    [['landscap','lawn','mow','irrigation','sod','mulch'], 'Landscaping'],
+    [['tree','arborist'], 'Tree Service'],
+    [['air condition','hvac','heating','cooling','furnace','refrigerat','ac repair','ac service'], 'HVAC'],
+    [['roof','shingle'], 'Roofing'],
+    [['plumb','drain','sewer'], 'Plumbing'],
+    [['landscap','lawn mow','lawn care','irrigation','sod '], 'Landscaping'],
     [['paint','stain','coating'], 'Painting'],
     [['electric','wiring','circuit'], 'Electrical'],
-    [['detail','ceramic coat','car wash','auto spa'], 'Auto Detailing'],
+    [['detailing','ceramic coat','car wash','auto spa'], 'Auto Detailing'],
     [['moving','movers','relocation','storage'], 'Moving Services'],
     [['pest','exterminator','termite','rodent'], 'Pest Control'],
     [['clean','maid','janitorial','pressure wash'], 'Cleaning Services'],
@@ -1680,6 +1680,14 @@ function buildPDFromPlaces(placeRaw) {
       if (terms.some(t => allSignals.includes(t))) { cat = label; break; }
     }
   }
+  // Final fallback: use Google's primaryTypeDisplayName if still unknown
+  if (cat === 'Local Business' && primaryType && primaryType.length > 3) {
+    cat = primaryType.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+  }
+  // Store the raw business name for search fallback
+  const _bizSearchTerm = cat === 'Local Business' ? 
+    bizNameLower.replace(/\b(the|a|an|inc|llc|co|company|services?|group|team|pros?)\b/gi,'').trim() : 
+    cat;
 
   PD.meta = {
     bizName: place.name,
@@ -2272,7 +2280,18 @@ function getKeywordsForBusiness(cat, city) {
     'Insulation':          ['insulation installation','attic insulation','spray foam insulation','insulation removal'],
     'Dentist':             ['dentist','dental cleaning','teeth whitening','dental implants','emergency dentist'],
   };
-  const kws = kwMap[cat] || ['local service','professional service','affordable service','best service','emergency service','top rated service'];
+  // Universal fallback: extract keywords from business name for unknown trades
+  let kws = kwMap[cat];
+  if (!kws) {
+    const cleanName = cat.toLowerCase()
+      .replace(/\b(the|a|an|inc|llc|co|company|group|team|pros?|services?|solutions?)\b/gi,'')
+      .trim();
+    const serviceWord = cleanName || 'service';
+    kws = [
+      serviceWord, serviceWord + ' near me', 'best ' + serviceWord,
+      'local ' + serviceWord, 'professional ' + serviceWord, 'affordable ' + serviceWord,
+    ];
+  }
   return kws.map(kw => kw + ' ' + city);
 }
 
@@ -2692,7 +2711,29 @@ async function fetchCompetitorsHTTP(bizName, address, myScore, myRating, myRevie
     const lng = d.location?.longitude;
     if (!lat) throw new Error('No coordinates');
 
-    const cat = PD.meta?.cat || 'home service';
+    // Smart competitor search term — never use generic 'Local Business'
+    const _detectedCat = PD.meta?.cat || 'home service';
+    const catSearchMap = {
+      'Tree Service': 'tree service', 'HVAC': 'HVAC contractor', 'Roofing': 'roofing contractor',
+      'Plumbing': 'plumber', 'Landscaping': 'landscaping', 'Painting': 'painting contractor',
+      'Electrical': 'electrician', 'Auto Detailing': 'auto detailing', 'General Contracting': 'general contractor',
+      'Moving Services': 'moving company', 'Pest Control': 'pest control', 'Cleaning Services': 'cleaning service',
+      'Fencing': 'fence contractor', 'Window Services': 'window replacement', 'Flooring': 'flooring contractor',
+      'Garage Door': 'garage door repair', 'Pool Services': 'pool service', 'Concrete & Paving': 'concrete contractor',
+      'Solar': 'solar panel installation', 'Insulation': 'insulation contractor', 'Dentist': 'dentist',
+    };
+    // For unknown categories, extract meaningful words from business name
+    let searchTerm;
+    if (_detectedCat === 'Local Business' || !catSearchMap[_detectedCat]) {
+      // Strip generic words, use what's left as search term
+      searchTerm = bizName
+        .replace(/\b(the|a|an|inc\.?|llc\.?|co\.?|company|group|team|pros?|services?|solutions?|professionals?)\b/gi, '')
+        .replace(/[^a-zA-Z0-9\s]/g, '')
+        .trim()
+        .split(/\s+/).slice(0, 3).join(' ') || 'home service';
+    } else {
+      searchTerm = catSearchMap[_detectedCat];
+    }
     const compResp = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method:'POST',
       headers:{
@@ -2701,7 +2742,7 @@ async function fetchCompetitorsHTTP(bizName, address, myScore, myRating, myRevie
         'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.photos,places.businessStatus',
       },
       body: JSON.stringify({
-        textQuery: cat + ' near me',
+        textQuery: searchTerm + ' near me',
         maxResultCount: 10,
         locationBias: { circle: { center: { latitude:lat, longitude:lng }, radius: 8000 } }
       })
@@ -2777,7 +2818,9 @@ function renderCompFallback(bizName, myScore, myRating, myReviews, myPhotos) {
 
 /* ── MAP PACK RANKINGS ── */
 function renderMapPack(m, score) {
-  const cat  = m.cat || 'Service';
+  const cat  = (m.cat === 'Local Business' || !m.cat) ? 
+    (m.bizName||'').replace(/\b(the|a|an|inc|llc|co|company)\b/gi,'').trim().split(/\s+/).slice(0,2).join(' ') || 'Service' : 
+    m.cat;
   const city = _getCityFromAddr(m.address) || 'Your City';
   const basePos = score>=85?2:score>=70?4:score>=55?7:score>=40?11:16;
 
@@ -2821,7 +2864,7 @@ function renderActions(m, sc) {
   if (!isP&&sc.response<60)   actions.push({ t:'Respond to All Unanswered Reviews',  d:`${m.allReviews.filter(r=>!r.reviewReply?.comment).length} reviews have no owner response. Respond within 24hrs — positive AND negative.`,       l:'crit', g:'+12 pts', t2:'Wk 1' });
   if (!isP&&sc.post<40)       actions.push({ t:'Start Posting 3× Per Week',          d:'Zero or minimal Google Posts detected. Post UPDATE, OFFER, and EVENT types consistently — this is a live ranking signal Google checks weekly.',   l:'crit', g:'+10 pts', t2:'Wk 2' });
   if (m.totalReviews<50)      actions.push({ t:'Launch Review Generation System',    d:'Text every customer post-job with a direct Google review link. Target 5 new reviews/week. This is the fastest single lever for map pack ranking.', l:'high', g:'+11 pts', t2:'Wk 2' });
-  if (!m.desc||m.desc.length<300)actions.push({ t:'Write Keyword-Rich Description', d:`Current: ${m.desc?.length||0} chars. Write 500-75not loaded via public API embedding primary trade + city + service keywords naturally in the first 250 characters.`,l:'high', g:'+8 pts',  t2:'Wk 2' });
+  if (!m.desc||m.desc.length<300)actions.push({ t:'Write Keyword-Rich Description', d:`Current: ${m.desc?.length||0} chars. Write 500-750 characters for your GBP description. Include your primary service + city in the first 250 characters. Go to business.google.com → Edit Profile → Business Description. embedding primary trade + city + service keywords naturally in the first 250 characters.`,l:'high', g:'+8 pts',  t2:'Wk 2' });
   if (!isP&&sc.qa<50)         actions.push({ t:'Seed 15+ Q&A Pairs Yourself',        d:'Q&A section is free keyword real estate. Create questions as a customer, answer as the owner with keyword-rich, city-specific answers.',           l:'high', g:'+7 pts',  t2:'Wk 3' });
   if (m.avgRating<4.5)        actions.push({ t:'Launch Reputation Repair Campaign',  d:`${(m.avgRating||0).toFixed(1)}★ is below the 4.5 threshold. Identify root causes of lower-rated experiences and systematically address them.`,  l:'high', g:'+9 pts',  t2:'Wk 3' });
   actions.push({ t:'Add Secondary Business Categories',  d:'Add 3-5 secondary categories for adjacent services. Each additional category makes you eligible for more keyword searches without diluting your primary positioning.', l:'med', g:'+5 pts', t2:'Wk 3' });
