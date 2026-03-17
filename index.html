@@ -2256,7 +2256,19 @@ function render30Audit(m, sc, isP) {
     { n:'MAP PACK ELIGIBILITY',       cat:'COMPETITIVE',        s:m.totalReviews>=50&&m.avgRating>=4.0?75:m.totalReviews>=25&&m.avgRating>=4.0?55:35,
       f:`${m.totalReviews>=50&&m.avgRating>=4.0?'Profile meets baseline map pack criteria. Ranking depends on proximity, relevance, and prominence vs competitors in your area.':m.totalReviews>=25?'Approaching map pack threshold. Reach 50+ reviews and maintain 4.0+ to qualify for consistent pack placement.':'Below map pack threshold. Priority: get to 50 reviews with 4.5+ average before investing in other optimization.'}` },
     { n:'CATEGORY KEYWORD COVERAGE',  cat:'COMPETITIVE',        s:65,
-      f:`Primary category "${m.cat}" selected. Add secondary categories for adjacent services (e.g., a roofer adding \"Gutter Service\", \"Siding Contractor\") to capture more keyword variations.` },
+      f:`Primary category "${m.cat}" selected. Add secondary categories for adjacent services — ${
+      m.cat==='Roofing'?'e.g. \"Gutter Service\", \"Siding Contractor\", \"Roof Inspection\"':
+      m.cat==='HVAC'?'e.g. \"Air Conditioning Contractor\", \"Furnace Repair\", \"Heating Contractor\"':
+      m.cat==='Plumbing'?'e.g. \"Drainage Service\", \"Water Heater Repair\", \"Septic System Service\"':
+      m.cat==='Tree Service'?'e.g. \"Arborist\", \"Stump Removal\", \"Landscaping\"':
+      m.cat==='Cleaning Services'?'e.g. \"House Cleaning\", \"Commercial Cleaning\", \"Janitorial Service\"':
+      m.cat==='Landscaping'?'e.g. \"Lawn Care\", \"Irrigation Service\", \"Snow Removal\"':
+      m.cat==='Painting'?'e.g. \"Deck Builder\", \"Siding Contractor\", \"Pressure Washing\"':
+      m.cat==='Electrical'?'e.g. \"EV Charger Installer\", \"Generator Service\", \"Security Systems\"':
+      m.cat==='Auto Detailing'?'e.g. \"Car Wash\", \"Window Tinting\", \"Paint Protection\"':
+      m.cat==='Pest Control'?'e.g. \"Exterminator\", \"Termite Control\", \"Wildlife Removal\"':
+      'e.g. add services adjacent to your primary trade'
+    } — each additional category makes you eligible for completely new keyword searches.` },
     { n:'LOCAL AUTHORITY SIGNALS',    cat:'COMPETITIVE',        s:Math.round((scoreReviews(m.avgRating,m.totalReviews)+(m.website?80:20)+scorePhotos(m.photoCount))/3),
       f:'Combined authority from reviews, visual presence, and profile completeness. Boost citations on Yelp, BBB, HomeAdvisor, Houzz, and Angi — each increases domain authority signals Google uses for local ranking.' },
     { n:'COMPETITOR GAP ANALYSIS',    cat:'COMPETITIVE',        s:50,
